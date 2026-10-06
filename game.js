@@ -114,8 +114,8 @@ function pushFight(f){
 function guardTap(){const now=performance.now();if(now-lastGuardTap<330&&clock-lastGuardClock<.33){lastGuardTap=lastGuardClock=-Infinity;if(multiplayer?.guest)multiplayer.push();else pushFight(player);}else{lastGuardTap=now;lastGuardClock=clock;}}
 function requestAttack(hand,force=1,touchKind=null){if(matchFlow.phase!=='playing'||(story.active||multiplayer?.active)&&clock<3)return;const kind=touchKind||(keys.has('KeyG')?'uppercut':keys.has('KeyF')?'hook':'straight');if(multiplayer?.guest){multiplayer.punch(hand,kind);return;}if(!punch(player,hand,force,kind))pendingAttack={hand,force,kind,expires:clock+.3};else pendingAttack=null;}
 function footwork(f,dt,moveX,moveZ){
- const heading=f.yaw+f.bodyTurn*.8,gait=f.gait,hips=f.hips.b,speed=Math.hypot(moveX,moveZ),sin=Math.sin(heading),cos=Math.cos(heading);
- const home=i=>{const side=i===0?-1:1;return v(hips.position.x+side*PHYSICS.stanceWidth*cos+sin*(i===0?.1:-.1),.075,hips.position.z-side*PHYSICS.stanceWidth*sin+cos*(i===0?.1:-.1));};
+ const leg=f.legScale||1,width=f.proportions?.hip||1,mass=f.massScale||1;const heading=f.yaw+f.bodyTurn*.8,gait=f.gait,hips=f.hips.b,speed=Math.hypot(moveX,moveZ),sin=Math.sin(heading),cos=Math.cos(heading);
+ const home=i=>{const side=i===0?-1:1;return v(hips.position.x+side*PHYSICS.stanceWidth*width*cos+sin*(i===0?.1:-.1),.075,hips.position.z-side*PHYSICS.stanceWidth*width*sin+cos*(i===0?.1:-.1));};
  if(gait.swing<0){let chosen=gait.next;const drift=gait.feet.map((p,i)=>{const h=home(i);return Math.hypot(p.x-h.x,p.z-h.z);});
    if(speed>.1||Math.max(...drift)>.22&&clock-Math.max(...f.punch)>.6){if(speed<=.1)chosen=drift[0]>drift[1]?0:1;gait.swing=chosen;gait.elapsed=0;gait.from=gait.feet[chosen].clone();gait.to=home(chosen);gait.to.x+=moveX*.27;gait.to.z+=moveZ*.27;}
  }
@@ -127,11 +127,11 @@ function footwork(f,dt,moveX,moveZ){
  let support=0;
  for(let i=0;i<2;i++){const id=i===0?'L':'R',foot=f['foot'+id].b,goal=gait.feet[i],swing=gait.swing===i;
    const error=goal.vsub(foot.position),force=v(error.x*(swing?850:2600)-foot.velocity.x*(swing?38:110),error.y*(swing?1100:650)-foot.velocity.y*40,error.z*(swing?850:2600)-foot.velocity.z*(swing?38:110));
-   const length=force.length();if(length>700)force.scale(700/length,force);foot.applyForce(force);
+   const length=force.length();if(length>700)force.scale(700/length,force);foot.applyForce(force.scale(mass));
    if(!swing&&foot.position.y<.18)support++;
    // Bend both leg segments toward the raised ankle, with knees facing forward.
- const hip=hips.pointToWorldFrame(v(i===0?-.095:.095,-.12,0));const ankle=goal.vadd(v(-sin*.065,.065,-cos*.065));const axis=ankle.vsub(hip);const distance=Math.min(.895,Math.max(.15,axis.length()));axis.normalize();
- const along=(.46*.46-.44*.44+distance*distance)/(2*distance),mid=hip.vadd(axis.scale(along));let pole=v(sin,0,cos);pole= pole.vsub(axis.scale(pole.dot(axis)));pole.normalize();const knee=mid.vadd(pole.scale(Math.sqrt(Math.max(0,.46*.46-along*along))));
+ const hip=hips.pointToWorldFrame(v((i===0?-.095:.095)*width,-.12,0));const ankle=goal.vadd(v(-sin*.065,.065,-cos*.065));const axis=ankle.vsub(hip);const distance=Math.min(.895*leg,Math.max(.15,axis.length()));axis.normalize();
+ const along=(.46*.46*leg*leg-.44*.44*leg*leg+distance*distance)/(2*distance),mid=hip.vadd(axis.scale(along));let pole=v(sin,0,cos);pole= pole.vsub(axis.scale(pole.dot(axis)));pole.normalize();const knee=mid.vadd(pole.scale(Math.sqrt(Math.max(0,.46*.46*leg*leg-along*along))));
    const upper=knee.vsub(hip),lower=ankle.vsub(knee);upper.normalize();lower.normalize();
    const yawPose=quaternion(0,heading,0),uq=new C.Quaternion().setFromVectors(v(0,-1,0),upper).mult(yawPose),lq=new C.Quaternion().setFromVectors(v(0,-1,0),lower).mult(yawPose);
    servo(f['thigh'+id].b,uq,180,85);servo(f['shin'+id].b,lq,165,75);servo(foot,quaternion(swing?-.15*Math.sin(gait.elapsed/PHYSICS.stepTime*Math.PI):0,heading+f.bodyTurn*(i===0?.28:.18),0),f.bodyTurn?110:85,f.bodyTurn?52:40);
@@ -141,7 +141,7 @@ function footwork(f,dt,moveX,moveZ){
 function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
  const hips=f.hips.b,torso=f.torso.b;const up=torso.quaternion.vmult(v(0,1,0));if(f.health<=0)f.down=clock+2.5;const active=clock>f.down&&f.health>0;
  if(!active)return;if(clock<(f.pushUntil||0)){moveX=f.pushDirection.x*2.2/PHYSICS.walkSpeed;moveZ=f.pushDirection.z*2.2/PHYSICS.walkSpeed;}f.guard+=(Number(guard)-f.guard)*Math.min(1,dt*18);f.dodge+=(dodgeInput-f.dodge)*(1-Math.exp(-dt*24));f.stagger=Math.max(0,f.stagger-dt*1.65);f.phase+=dt*Math.hypot(moveX,moveZ)*9;
- const sway=Math.sin(clock*17)*f.stagger*.055,firmness=1-f.stagger*.65;
+ const sway=Math.sin(clock*17)*f.stagger*.055,firmness=(1-f.stagger*.65)*(f.massScale||1);
  let twist=0,commit=0,hipTwist=0,loaded=0,dip=0,hookFollow=0,hookSide=0,upperDrive=0,windupPitch=0,driveWeight=0;for(let i=0;i<2;i++){const age=clock-f.punch[i];if(age>=0&&age<.82){const side=i===0?1:-1,kind=f.punchKind[i];if(kind==='uppercut'){dip=Math.max(dip,age<.18?Math.sin(age/.18*Math.PI/2)*.115:age<.46?.115*(1-(age-.18)/.28):0);upperDrive=Math.max(upperDrive,age>.18&&age<.46?Math.sin((age-.18)/.28*Math.PI):0);}if(kind!=='hook')windupPitch=Math.max(windupPitch,age<.18?Math.sin(age/.18*Math.PI/2)*(kind==='uppercut'?.18:.09):0);let turn;
    if(age<.18)turn=-.55*Math.sin(age/.18*Math.PI/2);
    else if(age<.46){const t=(age-.18)/.28;turn=-.55+1.8*(t*t*(3-2*t));}
@@ -156,6 +156,7 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
   const smooth=t=>t*t*(3-2*t),follow=age<.68?smooth((age-.46)/.22):age<.86?1:1-smooth((age-.86)/.46);
   const weight=kind==='hook'?1:kind==='straight'?.65:.5;const bodyFollow=kind==='hook'?follow:age<.68?smooth((age-.46)/.22):age<.78?1:1-smooth((age-.78)/.40);hookFollow=Math.max(hookFollow,bodyFollow*weight);hookSide+=(i===0?1:-1)*bodyFollow*weight;
  }
+ if(f.telegraph?.kind==='uppercut'){dip=Math.max(dip,.10);windupPitch=Math.max(windupPitch,.16);}
  if(f.telegraph)twist+=(f.telegraph.hand===0?-1:1)*.23;
  f.bodyTurn=twist;
  const pitch=(lean?.28:.05)+f.guard*.12+commit*.13+hookFollow*.34+windupPitch+commit*(driveWeight>1?.075:0)-upperDrive*.12;
@@ -163,7 +164,7 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
  const target=quaternion(pitch+sway+f.recoilPitch*f.stagger,f.yaw+twist,sway*.6-twist*.08+f.recoilRoll*f.stagger+dodgeRoll);servo(torso,target,(f.dodge?820:650)*balance()*firmness,f.dodge?360:290);servo(hips,quaternion(.025,f.yaw+hipTwist,-twist*.035+f.dodge*.06),(twist?(driveWeight>1?880:740):480)*balance()*firmness,twist?(driveWeight>1?360:310):220);servo(f.head.b,quaternion(pitch+f.guard*.48+commit*.16+f.recoilPitch*f.stagger,f.yaw+twist*.94,dodgeRoll*.8),95*firmness,45);
  const response=1-Math.exp(-dt*(Math.hypot(moveX,moveZ)>.1?15:24));f.move.x+=(moveX-f.move.x)*response;f.move.z+=(moveZ-f.move.z)*response;moveX=f.move.x;moveZ=f.move.z;
  const support=footwork(f,dt,moveX,moveZ);const bob=f.gait.swing<0?0:Math.sin(f.gait.elapsed/PHYSICS.stepTime*Math.PI)*.025;
- const lift=280+(1.10+bob+upperDrive*.055-dip-hookFollow*.065-commit*.035-Math.abs(f.dodge)*.10-hips.position.y)*1500-hips.velocity.y*145;hips.applyForce(v(0,Math.min(950,Math.max(-100,lift))*balance(),0));
+ const lift=280*(f.massScale||1)+((f.stanceHeight||1.10)+bob+upperDrive*.055-dip-hookFollow*.065-commit*.035-Math.abs(f.dodge)*.10-hips.position.y)*1500-hips.velocity.y*145;hips.applyForce(v(0,Math.min(950,Math.max(-100,lift))*balance(),0));
  const speedScale=(1-hookFollow*.18)*(1-Math.abs(f.dodge)*.18)*(1-f.guard*.24)*(1-commit*.35)*(1-f.stagger*.3);const walking=v((moveX*PHYSICS.walkSpeed*speedScale-hips.velocity.x)*360,0,(moveZ*PHYSICS.walkSpeed*speedScale-hips.velocity.z)*360);if(support){hips.applyForce(walking.scale(.45));torso.applyForce(walking.scale(.55));}
  // Keep the centre of mass over the step corridor, rather than dragging the hips away from the feet.
  const feet=f.gait.feet,baseX=(feet[0].x+feet[1].x)/2,baseZ=(feet[0].z+feet[1].z)/2;
@@ -201,10 +202,10 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
  const otherAge=clock-f.punch[1-i],cover=Math.max(f.guard,otherAge>=0&&otherAge<.68?.92:0);
  if(!swing&&cover>0){const protectedPoint=f.head.b.pointToWorldFrame(v(s*.195,.22,.19));goal.lerp(protectedPoint,cover,goal);}
  if(!swing&&f.telegraph?.hand===i){const cue=f.head.b.pointToWorldFrame(v(s*(.24+Math.sin((clock-f.telegraph.start)*16)*.025),.03,.12));goal.copy(cue);}
- const shoulder=torso.pointToWorldFrame(v(s*.20,.14,0));
+ const shoulder=torso.pointToWorldFrame(v(s*.20*(f.proportions?.chest||1),.14,0));
  const reach=goal.vsub(shoulder),distance=Math.max(.10,Math.min(swing&&kind==='hook'&&age>.16&&age<.6?.72:.765,reach.length()));reach.normalize();goal.copy(shoulder.vadd(reach.scale(distance)));
  // Solve the elbow from both real bone lengths, with its bend toward the ribs.
- const guide=torso.pointToWorldFrame(v(s*.29,-.24,.12)).vsub(shoulder);
+ const guide=torso.pointToWorldFrame(v(s*.29*(f.proportions?.chest||1),-.24,.12)).vsub(shoulder);
  const pole=guide.vsub(reach.scale(guide.dot(reach)));if(pole.length()<.01)pole.copy(v(0,-1,0));pole.normalize();
  const along=(.4*.4-.38*.38+distance*distance)/(2*distance),bend=Math.sqrt(Math.max(0,.4*.4-along*along));
  // At contact the elbow and fist share a horizontal plane, while the arm remains bent.
@@ -222,7 +223,7 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
  servo(f['upper'+id].b,armOrientation(upper,heading),swing?155:52,swing?110:30);servo(f['fore'+id].b,armOrientation(fore,heading),swing?100:45,swing?65:27);servo(hand,armOrientation(fore,heading),12,8);
  }
 }
-function reset(){lastGuardTap=lastGuardClock=-Infinity;remoteAttack=null;guestSnapshot=null;touchControls.reset();referee.reset();clock=0;acc=0;for(const j of jointDots)j.dot.visible=debug;pendingAttack=null;combatFX.clear();impactIndicators.clear();contactIndicators.clear();hitPause=0;hitFlash=0;keys.clear();for(const f of fighters){const dx=f===player?-1.1:1.1;for(const p of f.parts){const initial=p.mesh.userData.initial;if(initial){p.b.position.copy(initial);p.b.position.x+=dx-f.x;}p.b.velocity.setZero();p.b.angularVelocity.setZero();p.b.quaternion.set(0,0,0,1);p.mesh.position.copy(p.b.position);p.mesh.quaternion.copy(p.b.quaternion);}f.health=100;f.pushCooldown=0;f.pushUntil=0;f.pushStart=-10;f.guard=0;f.dodge=0;f.slipTracks=[];f.counterUntil=0;f.counterEarned=Infinity;f.slips=0;f.blocks=0;f.stagger=0;f.recoilPitch=0;f.recoilRoll=0;f.bodyTurn=0;f.move.setZero();f.hit.clear();f.down=0;f.yaw=f===player?Math.PI/2:-Math.PI/2;f.punch=[-10,-10];f.punchPower=[1,1];f.punchKind=['hook','hook'];f.cool=[0,0];f.gait={feet:[f.footL.b.position.clone(),f.footR.b.position.clone()],swing:-1,next:0,elapsed:0,from:null,to:null,steps:0};}story.reset();document.querySelector('#message').textContent=story.active?(story.chapter===3?'THE BOILER ROOM / LATCH':story.chapter===2?'THE BOILER ROOM / TWO STEP':'THE BOILER ROOM / FIRST FIGHT'):'FREE SPARRING';}
+function reset(){lastGuardTap=lastGuardClock=-Infinity;remoteAttack=null;guestSnapshot=null;touchControls.reset();referee.reset();clock=0;acc=0;for(const j of jointDots)j.dot.visible=debug;pendingAttack=null;combatFX.clear();impactIndicators.clear();contactIndicators.clear();hitPause=0;hitFlash=0;keys.clear();for(const f of fighters){const dx=f===player?-1.1:1.1;for(const p of f.parts){const initial=p.mesh.userData.initial;if(initial){p.b.position.copy(initial);p.b.position.x+=dx-f.x;}p.b.velocity.setZero();p.b.angularVelocity.setZero();p.b.quaternion.set(0,0,0,1);p.mesh.position.copy(p.b.position);p.mesh.quaternion.copy(p.b.quaternion);}f.health=100;f.pushCooldown=0;f.pushUntil=0;f.pushStart=-10;f.guard=0;f.dodge=0;f.slipTracks=[];f.counterUntil=0;f.counterEarned=Infinity;f.slips=0;f.blocks=0;f.stagger=0;f.recoilPitch=0;f.recoilRoll=0;f.bodyTurn=0;f.move.setZero();f.hit.clear();f.down=0;f.yaw=f===player?Math.PI/2:-Math.PI/2;f.punch=[-10,-10];f.punchPower=[1,1];f.punchKind=['hook','hook'];f.cool=[0,0];f.gait={feet:[f.footL.b.position.clone(),f.footR.b.position.clone()],swing:-1,next:0,elapsed:0,from:null,to:null,steps:0};}story.reset();document.querySelector('#message').textContent=story.active?(story.chapter===4?'THE BOILER ROOM / BULLFROG':story.chapter===3?'THE BOILER ROOM / LATCH':story.chapter===2?'THE BOILER ROOM / TWO STEP':'THE BOILER ROOM / FIRST FIGHT'):'FREE SPARRING';}
 for(const f of fighters)for(const p of f.parts){p.mesh.userData.initial=p.b.position.clone();p.mesh.position.copy(p.b.position);}
 const matchFlow=createMatchFlow(fighters,camera,reset,referee.replayParts,story,cinematics,()=>multiplayer?.guest?enemy:player);
 const touchControls=createTouchControls((hand,kind)=>requestAttack(hand,1,kind),guardTap);

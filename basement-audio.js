@@ -1,4 +1,4 @@
-export const voiceProfiles=Object.freeze({PLAYER:{pitch:126,formant:650},EDDIE:{pitch:172,formant:980},LEON:{pitch:138,formant:720},NICO:{pitch:103,formant:540},MARA:{pitch:205,formant:1150},REFEREE:{pitch:117,formant:600},OPPONENT:{pitch:145,formant:820}});
+export const voiceProfiles=Object.freeze({PLAYER:{pitch:126,formant:650},EDDIE:{pitch:172,formant:980},LEON:{pitch:138,formant:720},NICO:{pitch:103,formant:540},OTIS:{pitch:87,formant:470},MARA:{pitch:205,formant:1150},REFEREE:{pitch:117,formant:600},OPPONENT:{pitch:145,formant:820}});
 export function createBasementAudio(){
  let context=null,master=null,hum=null,muted=false,epoch=0,spoken=null;
  const live=new Set(),limits=new Map();
@@ -14,7 +14,7 @@ export function createBasementAudio(){
  function bell(){if(!allowed('bell',.5))return;for(const f of [725,1119,1577])tone(f,f*.996,1.8,.045);}
  function knockout(character,pan=0){if(!allowed('knockout',2))return;grunt(character,'hurt',1,pan);tone(65,28,.48,.16,'sine',pan);noise(.35,.12,320,pan);for(const offset of [-.7,0,.7])noise(.9,.035,1000,offset);}
  function stopVoices(){epoch++;globalThis.speechSynthesis?.cancel();spoken=null;}
- function speak(character,line){stopVoices();const speech=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance;if(!speech||!Utterance||!context||muted)return;const utterance=new Utterance(line),voices=speech.getVoices().filter(v=>/^en/i.test(v.lang));const female=character==='MARA';utterance.voice=voices.find(v=>female?/zira|female|susan|jenny/i.test(v.name):/david|mark|male|george|guy/i.test(v.name))||voices[0]||null;utterance.lang='en-US';utterance.pitch=({EDDIE:.98,LEON:.78,NICO:.62,MARA:1.08,REFEREE:.72})[character]||.9;utterance.rate=({EDDIE:1.10,LEON:.96,NICO:.86,MARA:1,REFEREE:.92})[character]||1;utterance.volume=.65;spoken=utterance;speech.speak(utterance);}
+ function speak(character,line){stopVoices();const speech=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance;if(!speech||!Utterance||!context||muted)return;const utterance=new Utterance(line),voices=speech.getVoices().filter(v=>/^en/i.test(v.lang));const female=character==='MARA';utterance.voice=voices.find(v=>female?/zira|female|susan|jenny/i.test(v.name):/david|mark|male|george|guy/i.test(v.name))||voices[0]||null;utterance.lang='en-US';utterance.pitch=({EDDIE:.98,LEON:.78,NICO:.62,OTIS:.56,MARA:1.08,REFEREE:.72})[character]||.9;utterance.rate=({EDDIE:1.10,LEON:.96,NICO:.86,OTIS:.89,MARA:1,REFEREE:.92})[character]||1;utterance.volume=.65;spoken=utterance;speech.speak(utterance);}
  function stop(){stopVoices();if(hum){hum.stop();hum.disconnect();hum=null;}for(const source of live){try{source.stop();}catch{}}limits.clear();}
  function toggle(){muted=!muted;if(master)master.gain.value=muted?0:.6;if(muted)stopVoices();return muted;}
  return {unlock,bell,stop,toggle,swing,impact,step,knockout,speak,stopVoices,get muted(){return muted;}};

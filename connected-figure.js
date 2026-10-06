@@ -6,7 +6,8 @@ export function createConnectedFigure(parent,f){
  const root=new THREE.Group();root.name='continuous-character-surface';parent.add(root);
  roundHead(f.head.mesh);roundGlove(f.gloveL.mesh);roundGlove(f.gloveR.mesh);
  const surfaces=[],empty=new THREE.BufferGeometry(),skin=f.torso.mesh.material,clothes=f.hips.mesh.material;
- const point=(name,x=0,y=0,z=0)=>new THREE.Vector3(x,y,z).applyQuaternion(f[name].mesh.quaternion).add(f[name].mesh.position);
+ const measure=(name)=>{const p=f.proportions;return p?{x:name==='torso'?p.chest:name==='hips'?p.hip:1,y:/^(thigh|shin)/.test(name)?p.leg:name==='head'?p.head:1,z:name==='head'?p.head:1}:{x:1,y:1,z:1};};
+ const point=(name,x=0,y=0,z=0)=>{const m=measure(name);return new THREE.Vector3(x*m.x,y*m.y,z*m.z).applyQuaternion(f[name].mesh.quaternion).add(f[name].mesh.position);};
  const joint=(a,ay,b,by,bz=0)=>point(a,0,ay).lerp(point(b,0,by,bz),.5);
  const mobile=typeof matchMedia==='function'&&matchMedia('(any-pointer: coarse)').matches;
  const radial=mobile?10:16,subdivisions=mobile?2:3,outline=Array.from({length:radial},(_,i)=>[Math.cos(i/radial*Math.PI*2),Math.sin(i/radial*Math.PI*2)]);
@@ -21,7 +22,7 @@ export function createConnectedFigure(parent,f){
  const ring=(at,width,depth=width,orientation=null)=>({at,width,depth,orientation});
  // One deforming surface runs from the neck through chest, waist and pelvis.
  // Cross sections follow both body rotations, so slips and hooks bend the waist smoothly.
- const bodyRing=(part,y,width,depth)=>ring(()=>point(part,0,y),width,depth,()=>f[part].mesh.quaternion);
+ const bodyRing=(part,y,width,depth)=>ring(()=>point(part,0,y),()=>width*(f.proportions?(part==='hips'?f.proportions.hip:part==='head'?f.proportions.head:y<-.12?f.proportions.waist:f.proportions.chest):1),()=>depth*(f.proportions?(part==='head'?f.proportions.head:f.proportions.depth):1),()=>f[part].mesh.quaternion);
  const waistband=f.hips.mesh.children.find(child=>child.geometry?.parameters?.width>.29&&child.geometry.parameters.height<.06);
  const trunk=tube('connected-trunk',[
   bodyRing('head',-.13,.135,.13),bodyRing('torso',.25,.16,.15),
@@ -47,10 +48,10 @@ export function createConnectedFigure(parent,f){
  const direction=new THREE.Vector3(),right=new THREE.Vector3(),forward=new THREE.Vector3(),reference=new THREE.Vector3();
  function update(){
   root.visible=f.torso.mesh.visible;
-  for(const {mesh,rings,ringCount,curve,centers} of surfaces){curve.points=rings.map(r=>r.at());for(let r=0;r<ringCount;r++)curve.getPoint(r/(ringCount-1),centers[r]);const position=mesh.geometry.attributes.position;
+  for(const {mesh,rings,ringCount,curve,centers} of surfaces){const limb=mesh.name.includes('arm')?'arm':mesh.name.includes('leg')?'hip':null,thickness=limb&&f.proportions?f.proportions[limb]:1;const value=n=>(typeof n==='function'?n():n)*thickness;curve.points=rings.map(r=>r.at());for(let r=0;r<ringCount;r++)curve.getPoint(r/(ringCount-1),centers[r]);const position=mesh.geometry.attributes.position;
    reference.set(1,0,0).applyQuaternion(f.torso.mesh.quaternion);
    for(let r=0;r<ringCount;r++){
-    const segment=Math.min(rings.length-2,Math.floor(r/subdivisions)),fraction=Math.min(1,r/subdivisions-segment),width=THREE.MathUtils.lerp(rings[segment].width,rings[segment+1].width,fraction),depth=THREE.MathUtils.lerp(rings[segment].depth,rings[segment+1].depth,fraction);
+    const segment=Math.min(rings.length-2,Math.floor(r/subdivisions)),fraction=Math.min(1,r/subdivisions-segment),width=THREE.MathUtils.lerp(value(rings[segment].width),value(rings[segment+1].width),fraction),depth=THREE.MathUtils.lerp(value(rings[segment].depth),value(rings[segment+1].depth),fraction);
     if(rings[segment].orientation&&rings[segment+1].orientation){const rotation=rings[segment].orientation().clone().slerp(rings[segment+1].orientation(),fraction);reference.set(1,0,0).applyQuaternion(rotation);}
     direction.copy(centers[Math.min(r+1,centers.length-1)]).sub(centers[Math.max(0,r-1)]);if(direction.lengthSq()<.000001)direction.set(0,-1,0);direction.normalize();
     right.copy(reference).addScaledVector(direction,-reference.dot(direction));if(right.lengthSq()<.001)right.set(0,0,1).addScaledVector(direction,-direction.z);right.normalize();forward.crossVectors(direction,right).normalize();

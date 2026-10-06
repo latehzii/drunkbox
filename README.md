@@ -4,7 +4,7 @@
 
 Install Node.js, run `npm install` once, then `npm start` (or open start.cmd). Open http://localhost:5173. The server listens on PORT, default 5173, and HOST, default 0.0.0.0.
 
-**Story Mode** has three fights with animated introductions and chapter progression. **Free Sparring** opens the stadium. **Multiplayer** lets one player create a private six-character party code; the friend enters it on the same website. Both press Ready to Fight. Each controls their own boxer. Knockouts include a replay and a rematch lobby.
+**Story Mode** has four fights with animated introductions and chapter progression. **Free Sparring** opens the stadium. **Multiplayer** lets one player create a private six-character party code; the friend enters it on the same website. Both press Ready to Fight. Each controls their own boxer. Knockouts include a replay and a rematch lobby.
 
 On phones, use the left joystick to move and the two right punch buttons. Select Straight, Hook or Uppercut; hold Guard or Slip. Controls support multiple fingers and automatically clear on interruption. Landscape gives more room; portrait also frames both fighters.
 
@@ -16,7 +16,7 @@ Public game: https://drunkbox.onrender.com
 
 Hosted on the Render Free plan in Frankfurt. The site and multiplayer API run on one Node web service, independently of your computer. The free service sleeps after 15 minutes without activity; waking it can take about a minute. Party sessions clear on a service restart. Source: https://github.com/latehzii/drunkbox. Hosting dashboard: https://dashboard.render.com/web/srv-db2f7imi0phs73efkk6g.
 
-To release code updates, update the repository main branch and choose Manual Deploy → Deploy latest commit in Render. This service uses a public repository URL and does not require access to any other repository. render.yaml records the free hosting setup.
+Updates to the repository main branch deploy automatically in Render. This service uses a public repository URL and does not require access to any other repository. render.yaml records the free hosting setup.
 
 A temporary public test tunnel can be started with the official Cloudflare executable in .tools:
 
