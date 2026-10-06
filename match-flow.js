@@ -37,5 +37,5 @@ export function createMatchFlow(fighters,camera,onReset,extraParts=[],story=null
   camera.position.copy(focus).addScaledVector(angle===0?side:direction,angle===0?3.5:3.8).addScaledVector(side,angle===0?0:-1.25);camera.position.y=focus.y+(angle===0?.75:2.3);camera.lookAt(focus);
   $('#replay-label').textContent='INSTANT REPLAY';$('#replay-angle').textContent=angle===0?'01 / RINGSIDE · 0.48×':'02 / CORNER CAMERA · 0.48×';$('#replay-progress').style.width=((elapsed%passLength)/passLength*100)+'%';
  }
- return {get phase(){return phase;},get koTime(){return koTime;},get sampleCount(){return history.length;},start,home,record,update,finish};
+ return {get phase(){return phase;},get koTime(){return koTime;},get sampleCount(){return history.length;},startChapter:chapterIntro,start,home,record,update,finish};
 }

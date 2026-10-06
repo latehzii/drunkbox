@@ -4,7 +4,8 @@ export const fighterIdentities=Object.freeze([
  {name:'EDDIE “TIN CAN”',full:'EDDIE MERCER',nick:'TIN CAN',voice:'EDDIE',leg:.91,chest:1.12,waist:1.23,hip:1.13,depth:1.22,arm:1.08,head:1.07,mass:1.04,skin:'#c99d7d',shorts:'#687750',hair:'#73543a',record:'0–3',tell:'ONE BIG RIGHT. ONE LONG BREATHER.'},
  {name:'LEON “TWO STEP”',full:'LEON WARD',nick:'TWO STEP',voice:'LEON',leg:1.02,chest:1.03,waist:.91,hip:.93,depth:.94,arm:.98,head:.96,mass:.99,skin:'#9e684b',shorts:'#983e58',hair:'#211a1c',record:'1–2',tell:'TWO HANDS. ONE OPENING.'},
  {name:'NICO “LATCH”',full:'NICO REYES',nick:'LATCH',voice:'NICO',leg:1.18,chest:.87,waist:.88,hip:.88,depth:.91,arm:.87,head:.94,mass:.94,skin:'#765140',shorts:'#285466',hair:'#111b22',record:'2–2',tell:'LONG LEGS. SHORT ANSWERS.'},
- {name:'OTIS “BULLFROG”',full:'OTIS BELL',nick:'BULLFROG',voice:'OTIS',leg:.94,chest:1.28,waist:1.20,hip:1.18,depth:1.24,arm:1.24,head:1.05,mass:1.20,skin:'#b77857',shorts:'#d06c32',hair:'#452a20',record:'3–3',tell:'LOW LOAD. BIG LIFT. LONG RESET.'}
+ {name:'OTIS “BULLFROG”',full:'OTIS BELL',nick:'BULLFROG',voice:'OTIS',leg:.94,chest:1.28,waist:1.20,hip:1.18,depth:1.24,arm:1.24,head:1.05,mass:1.20,skin:'#b77857',shorts:'#d06c32',hair:'#452a20',record:'3–3',tell:'LOW LOAD. BIG LIFT. LONG RESET.'},
+ {name:'VINCE “METER”',full:'VINCE DOYLE',nick:'METER',voice:'VINCE',leg:1.07,chest:1.10,waist:.95,hip:1.02,depth:1.02,arm:1.04,head:.98,mass:1.10,skin:'#c08a69',shorts:'#674eae',hair:'#332a24',record:'4–3',tell:'JAB. CROSS. RESET. BEAT THE RHYTHM.'}
 ]);
 const baseline=new WeakMap();
 export function applyFighterIdentity(f,identity=null){

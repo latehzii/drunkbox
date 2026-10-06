@@ -4,7 +4,7 @@
 
 Install Node.js, run `npm install` once, then `npm start` (or open start.cmd). Open http://localhost:5173. The server listens on PORT, default 5173, and HOST, default 0.0.0.0.
 
-**Story Mode** has four fights with animated introductions and chapter progression. **Free Sparring** opens the stadium. **Multiplayer** lets one player create a private six-character party code; the friend enters it on the same website. Both press Ready to Fight. Each controls their own boxer. Knockouts include a replay and a rematch lobby.
+**Story Mode** has five fights with animated introductions and saved progression. After four basement wins, Saturday Scraps opens a small lit sports hall with a walk-in, a larger crowd and Vince “Meter” Doyle. The first Fight Night win pays $75 into the saved career wallet once. **Free Sparring** opens the stadium. **Multiplayer** lets one player create a private six-character party code; the friend enters it on the same website. Both press Ready to Fight. Each controls their own boxer. Knockouts include a replay and a rematch lobby.
 
 On phones, use the left joystick to move and the two right punch buttons. Select Straight, Hook or Uppercut; hold Guard or Slip. Controls support multiple fingers and automatically clear on interruption. Landscape gives more room; portrait also frames both fighters.
 

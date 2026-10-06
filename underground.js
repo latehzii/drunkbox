@@ -39,6 +39,32 @@ export function createUnderground(scene,renderer){
  for(const side of [-1,1]){sign('BOILER ROOM','SATURDAY AMATEURS',3.05,.39,[0,-.27,side*3.064],side===1?0:Math.PI,'#363d30','#c8bea0');sign('BOILER ROOM','SATURDAY AMATEURS',3.05,.39,[side*3.064,-.27,0],side*Math.PI/2,'#363d30','#c8bea0');}
  // Tape repairs and old stains make this ring feel borrowed and well used.
  box([.45,.005,.11],[-1.8,.024,1.2],'#b0aa86');box([.11,.005,.43],[-1.8,.025,1.2],'#b0aa86');
+ // A neighbourhood sports hall: a real ticketed card, still close to the crowd.
+ const fightNight=new THREE.Group();fightNight.visible=false;scene.add(fightNight);
+ const hallBox=(size,pos,color)=>box(size,pos,color,fightNight);
+ function hallSign(text,small,width,height,pos,angle=0,bg='#172841',ink='#ffe4aa'){const m=sign(text,small,width,height,pos,angle,bg,ink);fightNight.add(m);return m;}
+ hallBox([23,.18,25],[0,-.7,0],'#253342');
+ for(const side of [-1,1]){hallBox([23,7,.25],[0,2.8,side*12],'#34475b');hallBox([.25,7,24],[side*11.4,2.8,0],'#2c3b50');for(const z of [-9,-3,3,9])hallBox([.18,6.8,.24],[side*11.2,2.7,z],'#152436');}
+ hallBox([23,.14,25],[0,6.35,0],'#172332');
+ hallSign('SATURDAY SCRAPS','NEIGHBOURHOOD FIGHT NIGHT / FIRST PAID CARD',6.4,1.8,[0,3.7,-11.82]);
+ hallSign('FIGHT NIGHT','SMALL HALL. LOUD PEOPLE.',4.2,1.1,[-11.2,3.2,-2],Math.PI/2);
+ for(const side of [-1,1]){hallBox([.12,.12,7.6],[side*3.8,4.85,0],'#647785');hallBox([7.6,.12,.12],[0,4.85,side*3.8],'#647785');for(let n=-3;n<=3;n++){hallBox([.08,.36,.08],[n,4.85,side*3.8],'#334455');hallBox([.08,.36,.08],[side*3.8,4.85,n],'#334455');}}
+ for(const side of [-1,1]){for(const x of [-2.6,2.6]){hallBox([.36,.24,.32],[x,4.68,side*3.8],'#101b29');hallBox([.27,.025,.25],[x,4.53,side*3.8],'#fff3cf');}const wash=new THREE.PointLight(side<0?'#ffad78':'#81cfff',6,14,2);wash.position.set(side*4,3.5,0);fightNight.add(wash);}
+ for(const x of [-2.6,2.6])for(const z of [-3.8,3.8]){const beam=new THREE.Mesh(new THREE.ConeGeometry(1.15,4.4,12,1,true),new THREE.MeshBasicMaterial({color:'#fff0c5',transparent:true,opacity:.022,depthWrite:false,side:THREE.DoubleSide}));beam.position.set(x*.72,2.33,z*.72);beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(x*.28,4.4,z*.28).normalize());fightNight.add(beam);}
+ // Entrance carpet, barriers and actual steps up to the ring apron.
+ hallBox([1.35,.018,7.2],[-2.1,-.595,7.1],'#ba4a50');
+ for(const side of [-1,1]){hallBox([.07,.9,6],[-2.1+side*.83,-.12,7.1],'#6b7b85');hallBox([.07,.055,6],[-2.1+side*.83,.32,7.1],'#b4c2c7');}
+ for(let n=0;n<3;n++)hallBox([1.2,.20*(n+1),.35],[-2.1,-.6+.1*(n+1),3.65-n*.35],'#6f8490');
+ for(const side of [-1,1]){hallBox([1.5,2.5,.16],[-2.1+side*1.1,.65,10.6],'#1a2030');hallBox([.10,2.4,.18],[-2.1+side*.75,.63,10.45],side<0?'#ffa563':'#62c9df');}
+ hallSign('YOUR FIRST PAYDAY','THE WALK IS REAL NOW.',3.2,.7,[-2.1,2.55,10.35],Math.PI);
+ const nightCanvas=hallSign('SATURDAY SCRAPS','FIGHT NIGHT / EARN YOUR KEEP',5.8,5.8,[0,.019,0]);nightCanvas.rotation.x=-Math.PI/2;
+ for(const side of [-1,1]){hallSign('SATURDAY SCRAPS','LOCAL FIGHT NIGHT',3.1,.40,[0,-.26,side*3.068],side===1?0:Math.PI);hallSign('SATURDAY SCRAPS','LOCAL FIGHT NIGHT',3.1,.40,[side*3.068,-.26,0],side*Math.PI/2);}
+ const seats=[];
+ for(let row=0;row<4;row++)for(let i=0;i<56;i++){const a=i/56*Math.PI*2,r=4.5+row*1.1,x=Math.sin(a)*r,z=Math.cos(a)*r;if(z>3.3&&x>-3.2&&x<-.95)continue;seats.push({x,z,y:-.6+row*.22,a});}
+ const instance=new THREE.Object3D(),paint=new THREE.Color();
+ for(const [size,offset,type] of [[[.34,.52,.24],[0,.90,0],'shirt'],[[.24,.28,.23],[0,1.31,0],'skin'],[[.26,.07,.24],[0,1.46,0],'hair'],[[.27,.65,.19],[0,.31,0],'legs']]){const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(...size),new THREE.MeshStandardMaterial({roughness:1}),seats.length);mesh.frustumCulled=false;for(let i=0;i<seats.length;i++){const p=seats[i];instance.position.set(p.x+offset[0],p.y+offset[1],p.z+offset[2]);instance.rotation.set(0,p.a+Math.PI,0);instance.updateMatrix();mesh.setMatrixAt(i,instance.matrix);paint.set(type==='shirt'?['#d37a59','#708e8f','#b7a76d','#6375a0','#9e6887'][i%5]:type==='skin'?['#bc9272','#916447','#d2af87'][i%3]:type==='hair'?'#302822':'#202936');mesh.setColorAt(i,paint);}fightNight.add(mesh);}
+ const tierSeats=seats.filter(p=>p.y>-.59),tiers=new THREE.InstancedMesh(new THREE.BoxGeometry(1.1,.18,1.1),material('#33495d'),tierSeats.length);tierSeats.forEach((p,i)=>{instance.position.set(p.x,p.y-.10,p.z);instance.rotation.set(0,p.a,0);instance.updateMatrix();tiers.setMatrixAt(i,instance.matrix);});fightNight.add(tiers);
+ let chapter=1,enabled=false;
  let elapsed=0;
- return {room,spectatorCount:spectators.length,setEnabled(enabled){room.visible=enabled;},resize(){},update(dt){elapsed+=dt;spectators.forEach((g,i)=>{g.rotation.z=Math.sin(elapsed*.7+i*2)*.012;});},render(camera,ringScene){renderer.autoClear=false;renderer.setRenderTarget(null);renderer.clear();renderer.render(ringScene,camera);}};
+ return {room,fightNight,get spectatorCount(){return chapter===5?seats.length:spectators.length;},setChapter(number){chapter=number;room.visible=enabled&&chapter!==5;fightNight.visible=enabled&&chapter===5;},setEnabled(value){enabled=value;room.visible=enabled&&chapter!==5;fightNight.visible=enabled&&chapter===5;},resize(){},update(dt){elapsed+=dt;if(room.visible)spectators.forEach((g,i)=>{g.rotation.z=Math.sin(elapsed*.7+i*2)*.012;});},render(camera,ringScene){renderer.autoClear=false;renderer.setRenderTarget(null);renderer.clear();renderer.render(ringScene,camera);}};
 }
