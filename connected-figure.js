@@ -36,10 +36,11 @@ export function createConnectedFigure(parent,f){
  if(waistband)waistband.visible=false;
  for(const id of ['L','R']){
   const side=id==='L'?-1:1,u='upper'+id,fore='fore'+id,thigh='thigh'+id,shin='shin'+id,foot='foot'+id;
-  const shoulder=()=>point('torso',side*.20,.14),elbow=()=>joint(u,-.20,fore,.19),wrist=()=>joint(fore,-.19,'glove'+id,.065);
-  // Build each bone between its shared joints, avoiding S-shaped folds from independent part centres.
-  tube('connected-arm-'+id,[ring(shoulder,.145,.14),ring(()=>shoulder().lerp(elbow(),.22),.135,.13),ring(()=>shoulder().lerp(elbow(),.62),.115,.115),ring(elbow,.112,.11),ring(()=>elbow().lerp(wrist(),.65),.098,.098),ring(wrist,.093,.093)],f[u].mesh.material);
-  tube('connected-leg-'+id,[ring(()=>point('hips',side*.10,-.06),.16,.17),ring(()=>point(thigh,0,.17),.155,.165),ring(()=>point(thigh,0,-.10),.15,.155),ring(()=>joint(thigh,-.23,shin,.22),.112,.12),ring(()=>point(shin,0,-.08),.10,.11),ring(()=>joint(shin,-.22,foot,.065,-.065),.10,.11)],[clothes,f[shin].mesh.material],2);
+  const armRoot=()=>point('torso',side*.065,.10),shoulder=()=>point('torso',side*.17,.14),elbow=()=>joint(u,-.20,fore,.19),wrist=()=>joint(fore,-.19,'glove'+id,.065);
+  // Bury the open root inside the chest/pelvis before flaring into the shoulder/thigh.
+  // Shared joints keep the rest of each limb continuous through punches and slips.
+  tube('connected-arm-'+id,[ring(armRoot,.13,.13),ring(shoulder,.145,.14),ring(()=>shoulder().lerp(elbow(),.22),.135,.13),ring(()=>shoulder().lerp(elbow(),.62),.115,.115),ring(elbow,.112,.11),ring(()=>elbow().lerp(wrist(),.65),.098,.098),ring(wrist,.093,.093)],f[u].mesh.material);
+  tube('connected-leg-'+id,[ring(()=>point('hips',side*.055,.025),.12,.13),ring(()=>point('hips',side*.10,-.06),.16,.17),ring(()=>point(thigh,0,.17),.155,.165),ring(()=>point(thigh,0,-.10),.15,.155),ring(()=>joint(thigh,-.23,shin,.22),.112,.12),ring(()=>point(shin,0,-.08),.10,.11),ring(()=>joint(shin,-.22,foot,.065,-.065),.10,.11)],[clothes,f[shin].mesh.material],3);
   // Keep identity patches and wrist wraps; replace the disconnected base cuboids.
   for(const name of [u,fore,thigh,shin]){const part=f[name];part.mesh.geometry=empty;for(const child of part.mesh.children){if(child.material===skin||child.material===clothes)child.visible=false;}}
  }

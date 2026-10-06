@@ -142,33 +142,34 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
  const hips=f.hips.b,torso=f.torso.b;const up=torso.quaternion.vmult(v(0,1,0));if(f.health<=0)f.down=clock+2.5;const active=clock>f.down&&f.health>0;
  if(!active)return;if(clock<(f.pushUntil||0)){moveX=f.pushDirection.x*2.2/PHYSICS.walkSpeed;moveZ=f.pushDirection.z*2.2/PHYSICS.walkSpeed;}f.guard+=(Number(guard)-f.guard)*Math.min(1,dt*18);f.dodge+=(dodgeInput-f.dodge)*(1-Math.exp(-dt*24));f.stagger=Math.max(0,f.stagger-dt*1.65);f.phase+=dt*Math.hypot(moveX,moveZ)*9;
  const sway=Math.sin(clock*17)*f.stagger*.055,firmness=1-f.stagger*.65;
- let twist=0,commit=0,hipTwist=0,loaded=0,dip=0,hookFollow=0,hookSide=0;for(let i=0;i<2;i++){const age=clock-f.punch[i];if(age>=0&&age<.82){const side=i===0?1:-1;if(f.punchKind[i]==='uppercut')dip=Math.max(dip,age<.18?Math.sin(age/.18*Math.PI/2)*.065:age<.46?.065*(1-(age-.18)/.28):0);let turn;
+ let twist=0,commit=0,hipTwist=0,loaded=0,dip=0,hookFollow=0,hookSide=0,upperDrive=0,windupPitch=0,driveWeight=0;for(let i=0;i<2;i++){const age=clock-f.punch[i];if(age>=0&&age<.82){const side=i===0?1:-1,kind=f.punchKind[i];if(kind==='uppercut'){dip=Math.max(dip,age<.18?Math.sin(age/.18*Math.PI/2)*.115:age<.46?.115*(1-(age-.18)/.28):0);upperDrive=Math.max(upperDrive,age>.18&&age<.46?Math.sin((age-.18)/.28*Math.PI):0);}if(kind!=='hook')windupPitch=Math.max(windupPitch,age<.18?Math.sin(age/.18*Math.PI/2)*(kind==='uppercut'?.18:.09):0);let turn;
    if(age<.18)turn=-.55*Math.sin(age/.18*Math.PI/2);
    else if(age<.46){const t=(age-.18)/.28;turn=-.55+1.8*(t*t*(3-2*t));}
    else if(age<.6)turn=1.25;
    else{const t=(age-.6)/.22;turn=1.25*(1-t*t*(3-2*t));}
-   turn*=f.punchKind[i]==='straight'?.48:f.punchKind[i]==='uppercut'?.64:1;twist+=side*turn;hipTwist+=side*(age<.18?turn*1.10:age<.46?Math.min(1.28,turn+.18):turn*.86);loaded+=side*Math.sin(Math.min(1,age/.46)*Math.PI)*.045;commit=Math.max(commit,age>.18&&age<.46?Math.sin((age-.18)/.28*Math.PI):0);
+   turn*=kind==='straight'?.90:kind==='uppercut'?.98:1;twist+=side*turn;hipTwist+=side*(age<.18?turn*1.10:age<.46?Math.min(1.28,turn+.18):turn*.86);loaded+=side*Math.sin(Math.min(1,age/.46)*Math.PI)*(kind==='straight'?.075:kind==='uppercut'?.06:.045);driveWeight=Math.max(driveWeight,kind==='straight'?1.6:kind==='uppercut'?1.3:1);commit=Math.max(commit,age>.18&&age<.46?Math.sin((age-.18)/.28*Math.PI):0);
  }}
- // A hook carries the weight diagonally down after contact, then recovers slowly.
+ // Every committed strike carries the body beyond contact before settling back.
+ // Hooks retain the deepest diagonal recovery.
  for(let i=0;i<2;i++){
-  const age=clock-f.punch[i];if(f.punchKind[i]!=='hook'||age<.46||age>=1.32||f.punch[1-i]>f.punch[i])continue;
+  const age=clock-f.punch[i];const kind=f.punchKind[i];if(age<.46||age>=(kind==='hook'?1.32:1.18)||f.punch[1-i]>f.punch[i])continue;
   const smooth=t=>t*t*(3-2*t),follow=age<.68?smooth((age-.46)/.22):age<.86?1:1-smooth((age-.86)/.46);
-  hookFollow=Math.max(hookFollow,follow);hookSide+=(i===0?1:-1)*follow;
+  const weight=kind==='hook'?1:kind==='straight'?.65:.5;const bodyFollow=kind==='hook'?follow:age<.68?smooth((age-.46)/.22):age<.78?1:1-smooth((age-.78)/.40);hookFollow=Math.max(hookFollow,bodyFollow*weight);hookSide+=(i===0?1:-1)*bodyFollow*weight;
  }
  if(f.telegraph)twist+=(f.telegraph.hand===0?-1:1)*.23;
  f.bodyTurn=twist;
- const pitch=(lean?.28:.05)+f.guard*.12+commit*.13+hookFollow*.34;
+ const pitch=(lean?.28:.05)+f.guard*.12+commit*.13+hookFollow*.34+windupPitch+commit*(driveWeight>1?.075:0)-upperDrive*.12;
  const dodgeRoll=-f.dodge*.86+hookSide*.20;
- const target=quaternion(pitch+sway+f.recoilPitch*f.stagger,f.yaw+twist,sway*.6-twist*.08+f.recoilRoll*f.stagger+dodgeRoll);servo(torso,target,(f.dodge?820:650)*balance()*firmness,f.dodge?360:290);servo(hips,quaternion(.025,f.yaw+hipTwist,-twist*.035+f.dodge*.06),(twist?740:480)*balance()*firmness,twist?310:220);servo(f.head.b,quaternion(pitch+f.guard*.48+commit*.16+f.recoilPitch*f.stagger,f.yaw+twist*.94,dodgeRoll*.8),95*firmness,45);
+ const target=quaternion(pitch+sway+f.recoilPitch*f.stagger,f.yaw+twist,sway*.6-twist*.08+f.recoilRoll*f.stagger+dodgeRoll);servo(torso,target,(f.dodge?820:650)*balance()*firmness,f.dodge?360:290);servo(hips,quaternion(.025,f.yaw+hipTwist,-twist*.035+f.dodge*.06),(twist?(driveWeight>1?880:740):480)*balance()*firmness,twist?(driveWeight>1?360:310):220);servo(f.head.b,quaternion(pitch+f.guard*.48+commit*.16+f.recoilPitch*f.stagger,f.yaw+twist*.94,dodgeRoll*.8),95*firmness,45);
  const response=1-Math.exp(-dt*(Math.hypot(moveX,moveZ)>.1?15:24));f.move.x+=(moveX-f.move.x)*response;f.move.z+=(moveZ-f.move.z)*response;moveX=f.move.x;moveZ=f.move.z;
  const support=footwork(f,dt,moveX,moveZ);const bob=f.gait.swing<0?0:Math.sin(f.gait.elapsed/PHYSICS.stepTime*Math.PI)*.025;
- const lift=280+(1.10+bob-dip-hookFollow*.065-commit*.035-Math.abs(f.dodge)*.10-hips.position.y)*1500-hips.velocity.y*145;hips.applyForce(v(0,Math.min(950,Math.max(-100,lift))*balance(),0));
+ const lift=280+(1.10+bob+upperDrive*.055-dip-hookFollow*.065-commit*.035-Math.abs(f.dodge)*.10-hips.position.y)*1500-hips.velocity.y*145;hips.applyForce(v(0,Math.min(950,Math.max(-100,lift))*balance(),0));
  const speedScale=(1-hookFollow*.18)*(1-Math.abs(f.dodge)*.18)*(1-f.guard*.24)*(1-commit*.35)*(1-f.stagger*.3);const walking=v((moveX*PHYSICS.walkSpeed*speedScale-hips.velocity.x)*360,0,(moveZ*PHYSICS.walkSpeed*speedScale-hips.velocity.z)*360);if(support){hips.applyForce(walking.scale(.45));torso.applyForce(walking.scale(.55));}
  // Keep the centre of mass over the step corridor, rather than dragging the hips away from the feet.
  const feet=f.gait.feet,baseX=(feet[0].x+feet[1].x)/2,baseZ=(feet[0].z+feet[1].z)/2;
  const offset=v(baseX+moveX*.13+Math.cos(f.yaw)*loaded+Math.sin(f.yaw)*commit*.045-hips.position.x,0,baseZ+moveZ*.13-Math.sin(f.yaw)*loaded+Math.cos(f.yaw)*commit*.045-hips.position.z),excess=Math.max(0,offset.length()-.16);
  if(excess>0){offset.normalize();hips.applyForce(offset.scale(Math.min(220,excess*900)*firmness));}
- if(Math.hypot(moveX,moveZ)<.1)hips.applyForce(v(-hips.velocity.x*160,0,-hips.velocity.z*160));if(support&&commit){const transfer=v(Math.sin(f.yaw)*85*commit,0,Math.cos(f.yaw)*85*commit);torso.applyForce(transfer);hips.applyForce(transfer.scale(-.25));}
+ if(Math.hypot(moveX,moveZ)<.1)hips.applyForce(v(-hips.velocity.x*160,0,-hips.velocity.z*160));if(support&&commit){const transfer=v(Math.sin(f.yaw)*85*commit*driveWeight,0,Math.cos(f.yaw)*85*commit*driveWeight);torso.applyForce(transfer);hips.applyForce(transfer.scale(-.25));}
  for(let i=0;i<2;i++){const id=i===0?'L':'R',s=i===0?-1:1;
  const age=clock-f.punch[i],swing=age>=0&&age<.82,kind=f.punchKind[i];
  // Drive the glove through a broad horizontal arc using forces, never teleporting it.
@@ -186,12 +187,12 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
   const smooth=t=>t*t*(3-2*t),strike=smooth(Math.max(0,Math.min(1,(age-.18)/.24))),recover=smooth(Math.max(0,Math.min(1,(age-.52)/.30)));
   if(kind==='straight'){
    const load=Math.min(1,age/.18);localX=s*(.205-.12*strike)*(1-recover)+s*.205*recover;
-   localZ=(.19-.055*load+.69*strike)*(1-recover)+.19*recover;
+   localZ=(.19-.10*load+.735*strike)*(1-recover)+.19*recover;
    height=(.015+.265*load)*(1-recover)+.015*recover;
   }else{
    const load=smooth(Math.min(1,age/.18));localX=s*(.205-.065*strike);
-   localZ=(.19+.065*load+.32*strike)*(1-recover)+.19*recover;
-   height=(.015-.29*load+.80*strike)*(1-recover)+.015*recover;
+   localZ=(.19-.035*load+.41*strike)*(1-recover)+.19*recover;
+   height=(.015-.34*load+.91*strike)*(1-recover)+.015*recover;
   }
  }
  const sin=Math.sin(heading),cos=Math.cos(heading),hand=f['glove'+id].b;
