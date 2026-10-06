@@ -74,7 +74,7 @@ export function createStadium(renderer){
  #include <colorspace_fragment>
  }`});
  overlay.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),blur));
- return {spectatorCount:count,resize(w,h){const width=Math.max(1,Math.round(w*.6)),height=Math.max(1,Math.round(h*.6));target.setSize(width,height);blur.uniforms.texel.value.set(1/width,1/height);},render(camera,ringScene){renderer.autoClear=false;renderer.setRenderTarget(target);renderer.clear();renderer.render(stadium,camera);renderer.setRenderTarget(null);renderer.clear();renderer.render(overlay,screenCamera);renderer.clearDepth();renderer.render(ringScene,camera);}};
+ return {spectatorCount:count,resize(w,h){const width=Math.max(1,Math.round(w*(typeof matchMedia==='function'&&matchMedia('(any-pointer: coarse)').matches?.35:.6))),height=Math.max(1,Math.round(h*(typeof matchMedia==='function'&&matchMedia('(any-pointer: coarse)').matches?.35:.6)));target.setSize(width,height);blur.uniforms.texel.value.set(1/width,1/height);},render(camera,ringScene){renderer.autoClear=false;renderer.setRenderTarget(target);renderer.clear();renderer.render(stadium,camera);renderer.setRenderTarget(null);renderer.clear();renderer.render(overlay,screenCamera);renderer.clearDepth();renderer.render(ringScene,camera);}};
 }
 
 export function improveRing(scene){

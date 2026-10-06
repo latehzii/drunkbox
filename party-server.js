@@ -1,4 +1,5 @@
 import {WebSocketServer} from 'ws';
+import {Readable} from 'node:stream';
 import {randomBytes,randomInt} from 'node:crypto';
 export function createPartyService(){
  const rooms=new Map(),sessions=new Map(),websockets=new WebSocketServer({noServer:true,maxPayload:40000});const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -26,6 +27,7 @@ export function createPartyService(){
   if(url.pathname==='/api/ready'){if(room.playing&&!room.ended){reply(res,409,{error:'The fight is already underway.'});return true;}slot.ready=true;broadcast(room,info(room));if(room.slots.every(s=>s?.ready&&s.stream)){room.playing=true;room.ended=false;room.match++;room.slots.forEach(s=>{s.input=empty();s.actions=[];});broadcast(room,{type:'start',match:room.match});}reply(res,200,{ok:true});return true;}
   if(!room.playing||body.match!==room.match){reply(res,409,{error:'No active fight.'});return true;}
   if(url.pathname==='/api/input'&&slot.role===1){if(Number.isInteger(body.seq)&&body.seq>slot.lastInput){slot.lastInput=body.seq;const x=Number(body.x)||0,z=Number(body.z)||0,norm=Math.max(1,Math.hypot(x,z));slot.input={x:Math.max(-1,Math.min(1,x/norm)),z:Math.max(-1,Math.min(1,z/norm)),guard:body.guard===true,slip:Math.max(-1,Math.min(1,Number(body.slip)||0))};}send(room.slots[0],{type:'input',input:slot.input});reply(res,200,{ok:true});return true;}
+  if(url.pathname==='/api/push'&&slot.role===1){if(Number.isInteger(body.seq)&&body.seq>slot.lastAction){slot.lastAction=body.seq;send(room.slots[0],{type:'push'});}reply(res,200,{ok:true});return true;}
   if(url.pathname==='/api/punch'&&slot.role===1){if(Number.isInteger(body.seq)&&body.seq>slot.lastAction&&[0,1].includes(body.hand)&&['straight','hook','uppercut'].includes(body.kind)){slot.lastAction=body.seq;send(room.slots[0],{type:'punch',hand:body.hand,kind:body.kind});}reply(res,200,{ok:true});return true;}
   if(url.pathname==='/api/state'&&slot.role===0){const state=body.state;if(!state||!Number.isFinite(state.clock)||!Array.isArray(state.poses)||state.poses.length<30||state.poses.length>60||!state.poses.every(p=>Array.isArray(p)&&p.length===7&&p.every(n=>Number.isFinite(n)&&Math.abs(n)<1e5))||!Array.isArray(state.fighters)||state.fighters.length!==2||!state.fighters.every(f=>f&&Number.isFinite(f.health)&&f.health>=0&&f.health<=100&&Number.isFinite(f.yaw)&&Array.isArray(f.punch)&&f.punch.length===2&&f.punch.every(Number.isFinite)&&Array.isArray(f.punchKind)&&f.punchKind.length===2&&f.punchKind.every(k=>['straight','hook','uppercut'].includes(k))&&Number.isFinite(f.dodge)&&Math.abs(f.dodge)<=1)){reply(res,400,{error:'Invalid fight state.'});return true;}if(state.phase==='result'&&!room.ended){room.ended=true;room.slots.forEach(s=>{if(s)s.ready=false;});}send(room.slots[1],{type:'state',state});reply(res,200,{ok:true});return true;}
   reply(res,403,{error:'Action unavailable.'});return true;
@@ -37,6 +39,7 @@ export function createPartyService(){
   if(url.pathname!=='/api/events'||!slot||!originValid){socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');socket.destroy();return;}
   websockets.handleUpgrade(req,socket,head,ws=>{slot.seen=Date.now();const previous=slot.stream;slot.stream=ws;previous?.end?.();previous?.close?.();broadcast(slot.room,info(slot.room));if(slot.room.playing)send(slot,{type:'start',match:slot.room.match});
    ws.on('close',()=>{if(slot.stream===ws){slot.stream=null;slot.input=empty();slot.seen=Date.now();broadcast(slot.room,{type:'paused',message:'Connection interrupted. Waiting for your friend…'});broadcast(slot.room,info(slot.room));}});
+   ws.on('message',data=>{let packet;try{packet=JSON.parse(data.toString());}catch{return;}if(!['input','punch','push','state'].includes(packet.action))return;const action=packet.action;delete packet.action;const request=Object.assign(Readable.from([Buffer.from(JSON.stringify(packet))]),{method:'POST',url:'/api/'+action,headers:{authorization:'Bearer '+slot.token,host:req.headers.host}});const response={statusCode:200,writeHead(status){this.statusCode=status;return this;},end(body){if(this.statusCode>=400)send(slot,{type:'error',message:JSON.parse(body).error});}};handle(request,response).catch(()=>send(slot,{type:'error',message:'Invalid live action.'}));});
    ws.on('error',()=>{});ws.on('pong',()=>slot.seen=Date.now());
   });
  }

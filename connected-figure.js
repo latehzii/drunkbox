@@ -8,14 +8,15 @@ export function createConnectedFigure(parent,f){
  const surfaces=[],empty=new THREE.BufferGeometry(),skin=f.torso.mesh.material,clothes=f.hips.mesh.material;
  const point=(name,x=0,y=0,z=0)=>new THREE.Vector3(x,y,z).applyQuaternion(f[name].mesh.quaternion).add(f[name].mesh.position);
  const joint=(a,ay,b,by,bz=0)=>point(a,0,ay).lerp(point(b,0,by,bz),.5);
- const radial=16,subdivisions=3,outline=Array.from({length:radial},(_,i)=>[Math.cos(i/radial*Math.PI*2),Math.sin(i/radial*Math.PI*2)]);
+ const mobile=typeof matchMedia==='function'&&matchMedia('(any-pointer: coarse)').matches;
+ const radial=mobile?10:16,subdivisions=mobile?2:3,outline=Array.from({length:radial},(_,i)=>[Math.cos(i/radial*Math.PI*2),Math.sin(i/radial*Math.PI*2)]);
  function tube(name,rings,materials,clothingUntil=-1){
   const ringCount=(rings.length-1)*subdivisions+1,geometry=new THREE.BufferGeometry(),positions=new Float32Array(ringCount*radial*3),indices=[];
   for(let r=0;r<ringCount-1;r++)for(let i=0;i<radial;i++){const a=r*radial+i,b=r*radial+(i+1)%radial,c=(r+1)*radial+i,d=(r+1)*radial+(i+1)%radial;indices.push(a,b,c,b,d,c);}
   geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));geometry.setIndex(indices);
   const seam=clothingUntil*subdivisions*radial*6;
   if(Array.isArray(materials)){geometry.addGroup(0,seam,0);geometry.addGroup(seam,indices.length-seam,1);}
-  const mesh=new THREE.Mesh(geometry,materials);mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;root.add(mesh);surfaces.push({mesh,rings,ringCount,radial});return mesh;
+  const mesh=new THREE.Mesh(geometry,materials);mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;root.add(mesh);surfaces.push({mesh,rings,ringCount,radial,curve:new THREE.CatmullRomCurve3([],false,'centripetal'),centers:Array.from({length:ringCount},()=>new THREE.Vector3())});return mesh;
  }
  const ring=(at,width,depth=width,orientation=null)=>({at,width,depth,orientation});
  // One deforming surface runs from the neck through chest, waist and pelvis.
@@ -35,7 +36,9 @@ export function createConnectedFigure(parent,f){
  if(waistband)waistband.visible=false;
  for(const id of ['L','R']){
   const side=id==='L'?-1:1,u='upper'+id,fore='fore'+id,thigh='thigh'+id,shin='shin'+id,foot='foot'+id;
-  tube('connected-arm-'+id,[ring(()=>point('torso',side*.135,.14),.145,.14),ring(()=>point(u,0,.17),.135,.13),ring(()=>point(u,0,0),.115,.115),ring(()=>joint(u,-.20,fore,.19),.112,.11),ring(()=>point(fore,0,-.12),.098,.098),ring(()=>joint(fore,-.19,'glove'+id,.045),.093,.093)],f[u].mesh.material);
+  const shoulder=()=>point('torso',side*.20,.14),elbow=()=>joint(u,-.20,fore,.19),wrist=()=>joint(fore,-.19,'glove'+id,.065);
+  // Build each bone between its shared joints, avoiding S-shaped folds from independent part centres.
+  tube('connected-arm-'+id,[ring(shoulder,.145,.14),ring(()=>shoulder().lerp(elbow(),.22),.135,.13),ring(()=>shoulder().lerp(elbow(),.62),.115,.115),ring(elbow,.112,.11),ring(()=>elbow().lerp(wrist(),.65),.098,.098),ring(wrist,.093,.093)],f[u].mesh.material);
   tube('connected-leg-'+id,[ring(()=>point('hips',side*.10,-.06),.16,.17),ring(()=>point(thigh,0,.17),.155,.165),ring(()=>point(thigh,0,-.10),.15,.155),ring(()=>joint(thigh,-.23,shin,.22),.112,.12),ring(()=>point(shin,0,-.08),.10,.11),ring(()=>joint(shin,-.22,foot,.065,-.065),.10,.11)],[clothes,f[shin].mesh.material],2);
   // Keep identity patches and wrist wraps; replace the disconnected base cuboids.
   for(const name of [u,fore,thigh,shin]){const part=f[name];part.mesh.geometry=empty;for(const child of part.mesh.children){if(child.material===skin||child.material===clothes)child.visible=false;}}
@@ -43,7 +46,7 @@ export function createConnectedFigure(parent,f){
  const direction=new THREE.Vector3(),right=new THREE.Vector3(),forward=new THREE.Vector3(),reference=new THREE.Vector3();
  function update(){
   root.visible=f.torso.mesh.visible;
-  for(const {mesh,rings,ringCount} of surfaces){const controls=rings.map(r=>r.at()),curve=new THREE.CatmullRomCurve3(controls,false,'centripetal'),centers=Array.from({length:ringCount},(_,r)=>curve.getPoint(r/(ringCount-1))),position=mesh.geometry.attributes.position;
+  for(const {mesh,rings,ringCount,curve,centers} of surfaces){curve.points=rings.map(r=>r.at());for(let r=0;r<ringCount;r++)curve.getPoint(r/(ringCount-1),centers[r]);const position=mesh.geometry.attributes.position;
    reference.set(1,0,0).applyQuaternion(f.torso.mesh.quaternion);
    for(let r=0;r<ringCount;r++){
     const segment=Math.min(rings.length-2,Math.floor(r/subdivisions)),fraction=Math.min(1,r/subdivisions-segment),width=THREE.MathUtils.lerp(rings[segment].width,rings[segment+1].width,fraction),depth=THREE.MathUtils.lerp(rings[segment].depth,rings[segment+1].depth,fraction);
