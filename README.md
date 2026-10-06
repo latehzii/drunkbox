@@ -12,7 +12,11 @@ Desktop: WASD movement, mouse left/right or arrow left/right for punches, F + pu
 
 ## Friends over the internet
 
-Deploy this Node server on a public host that supports WebSocket connections. It serves both the website and party API on one port. render.yaml is a deployment template; no permanent hosting account has been connected or deployed. Static-only hosting cannot run the party service.
+Public game: https://drunkbox.onrender.com
+
+Hosted on the Render Free plan in Frankfurt. The site and multiplayer API run on one Node web service, independently of your computer. The free service sleeps after 15 minutes without activity; waking it can take about a minute. Party sessions clear on a service restart. Source: https://github.com/latehzii/drunkbox. Hosting dashboard: https://dashboard.render.com/web/srv-db2f7imi0phs73efkk6g.
+
+To release code updates, update the repository main branch and choose Manual Deploy → Deploy latest commit in Render. This service uses a public repository URL and does not require access to any other repository. render.yaml records the free hosting setup.
 
 A temporary public test tunnel can be started with the official Cloudflare executable in .tools:
 
