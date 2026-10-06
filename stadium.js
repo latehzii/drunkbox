@@ -2,7 +2,7 @@ import * as THREE from './vendor/three.js';
 
 function signMaterial(title,subtitle='',background='#111e31',accent='#dec192'){
  if(!document.createElement)return new THREE.MeshBasicMaterial({color:accent});
- const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=256;const ctx=canvas.getContext('2d');ctx.fillStyle=background;ctx.fillRect(0,0,1024,256);ctx.fillStyle=accent;ctx.fillRect(0,0,1024,7);ctx.fillRect(0,249,1024,7);ctx.textAlign='center';ctx.font='bold 90px Arial';ctx.fillText(title,512,133);ctx.font='25px Arial';ctx.fillStyle='#bdc8d5';ctx.fillText(subtitle,512,199);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});
+ const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=256;const ctx=canvas.getContext('2d');ctx.fillStyle=background;ctx.fillRect(0,0,1024,256);ctx.fillStyle=accent;ctx.fillRect(0,0,1024,7);ctx.fillRect(0,249,1024,7);ctx.textAlign='center';ctx.font='bold 90px Arial';ctx.font='25px Arial';ctx.fillStyle='#bdc8d5';const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});
 }
 
 export function createStadium(renderer){
@@ -83,7 +83,7 @@ export function improveRing(scene){
    ctx.fillStyle='#547083';ctx.fillRect(0,0,1024,1024);let seed=51;
    for(let i=0;i<9000;i++){seed=(seed*1664525+1013904223)>>>0;const x=(seed>>>16)%1024;seed=(seed*1664525+1013904223)>>>0;const y=(seed>>>16)%1024;ctx.fillStyle=i%2?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.04)';ctx.fillRect(x,y,1,1);}
    ctx.strokeStyle='#c3cfce';ctx.lineWidth=3;ctx.strokeRect(55,55,914,914);ctx.strokeStyle='rgba(220,232,229,.2)';ctx.lineWidth=1;ctx.strokeRect(250,250,524,524);
-   ctx.save();ctx.translate(512,512);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillStyle='#e2e5d8';ctx.font='bold 80px Arial';ctx.fillText('DRUNKBOX',0,5);ctx.font='20px Arial';ctx.fillStyle='#bbccce';ctx.fillText('F I G H T   N I G H T',0,43);ctx.restore();
+   ctx.save();ctx.translate(512,512);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillStyle='#e2e5d8';ctx.font='bold 80px Arial';ctx.font='20px Arial';ctx.fillStyle='#bbccce';ctx.restore();
    for(const [x,y,c] of [[28,28,'#bf4d42'],[918,28,'#316b9a'],[28,918,'#bf4d42'],[918,918,'#316b9a']]){ctx.fillStyle=c;ctx.fillRect(x,y,78,78);}
    const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;cloth.color.set('#ffffff');cloth.map=texture;
  }

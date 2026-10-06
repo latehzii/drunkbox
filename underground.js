@@ -7,7 +7,7 @@ export function createUnderground(scene,renderer){
  function box(size,pos,color,parent=room){const m=new THREE.Mesh(new THREE.BoxGeometry(...size),material(color));m.position.set(...pos);m.receiveShadow=true;parent.add(m);return m;}
  function sign(text,small,width,height,pos,angle=0,bg='#222322',ink='#e9c797'){
   let mat=new THREE.MeshBasicMaterial({color:ink,side:THREE.DoubleSide});
-  if(document.createElement){const c=document.createElement('canvas');c.width=1024;c.height=512;const x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,1024,512);x.strokeStyle=ink;x.lineWidth=12;x.strokeRect(25,25,974,462);x.textAlign='center';x.fillStyle=ink;x.font='bold 86px Arial';x.fillText(text,512,235);x.font='26px Arial';x.fillText(small,512,320);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;mat=new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide});}
+  if(document.createElement){const c=document.createElement('canvas');c.width=1024;c.height=512;const x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,1024,512);x.strokeStyle=ink;x.lineWidth=12;x.strokeRect(25,25,974,462);x.textAlign='center';x.fillStyle=ink;x.font='bold 86px Arial';x.font='26px Arial';const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;mat=new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide});}
   const m=new THREE.Mesh(new THREE.PlaneGeometry(width,height),mat);m.position.set(...pos);m.rotation.y=angle;room.add(m);return m;
  }
  box([20,.18,20],[0,-.7,0],'#393934');
@@ -19,10 +19,7 @@ export function createUnderground(scene,renderer){
  for(const x of [-6,0,6]){box([.32,.32,20],[x,4.65,0],'#272e2d');if(x!==0)box([.45,5.4,.45],[x,-.65+2.7,-7],'#59584d');}
  for(const z of [-5.5,5.5]){const pipe=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,19.4,12),material('#845e43'));pipe.rotation.z=Math.PI/2;pipe.position.set(0,4.35,z);room.add(pipe);for(const x of [-7,-3,2,7])box([.05,.3,.3],[x,4.35,z],'#3c3933');}
  for(const x of [-2.5,2.5]){box([.6,.12,1.5],[x,4.48,0],'#202926');box([.46,.018,1.25],[x,4.40,0],'#fbdfb0');const light=new THREE.PointLight('#ffd19a',8,13,2);light.position.set(x,4.1,0);room.add(light);}
- sign('THE BOILER ROOM','NO CAMERAS. NO SHORTCUTS. JUST BOXING.',5,2.1,[0,2.4,-9.60]);
- sign('AMATEUR NIGHT','FIRST FIGHT / ALL HEART',2.7,1.5,[-9.60,2.2,-3],Math.PI/2,'#333b32','#a8c1a3');
- sign('EXIT','KEEP THIS DOOR CLEAR',1.25,.6,[7.5,2.6,-9.59],0,'#163b30','#b8e4c0');box([1.6,2.7,.08],[7.5,.68,-9.56],'#273a32');
- sign('MERCER','0–3 / STILL SHOWING UP',1.6,1.1,[9.60,1.5,1.8],-Math.PI/2,'#c6bc95','#282c25');
+ box([1.6,2.7,.08],[7.5,.68,-9.56],'#273a32');
  // A close crowd of locals, not a stadium audience.
  const spectators=[];const palette=['#63766a','#806c56','#384957','#77605e','#776f54'];
  for(let i=0;i<64;i++){
@@ -46,8 +43,6 @@ export function createUnderground(scene,renderer){
  hallBox([23,.18,25],[0,-.7,0],'#253342');
  for(const side of [-1,1]){hallBox([23,7,.25],[0,2.8,side*12],'#34475b');hallBox([.25,7,24],[side*11.4,2.8,0],'#2c3b50');for(const z of [-9,-3,3,9])hallBox([.18,6.8,.24],[side*11.2,2.7,z],'#152436');}
  hallBox([23,.14,25],[0,6.35,0],'#172332');
- hallSign('SATURDAY SCRAPS','NEIGHBOURHOOD FIGHT NIGHT / FIRST PAID CARD',6.4,1.8,[0,3.7,-11.82]);
- hallSign('FIGHT NIGHT','SMALL HALL. LOUD PEOPLE.',4.2,1.1,[-11.2,3.2,-2],Math.PI/2);
  for(const side of [-1,1]){hallBox([.12,.12,7.6],[side*3.8,4.85,0],'#647785');hallBox([7.6,.12,.12],[0,4.85,side*3.8],'#647785');for(let n=-3;n<=3;n++){hallBox([.08,.36,.08],[n,4.85,side*3.8],'#334455');hallBox([.08,.36,.08],[side*3.8,4.85,n],'#334455');}}
  for(const side of [-1,1]){for(const x of [-2.6,2.6]){hallBox([.36,.24,.32],[x,4.68,side*3.8],'#101b29');hallBox([.27,.025,.25],[x,4.53,side*3.8],'#fff3cf');}const wash=new THREE.PointLight(side<0?'#ffad78':'#81cfff',6,14,2);wash.position.set(side*4,3.5,0);fightNight.add(wash);}
  for(const x of [-2.6,2.6])for(const z of [-3.8,3.8]){const beam=new THREE.Mesh(new THREE.ConeGeometry(1.15,4.4,12,1,true),new THREE.MeshBasicMaterial({color:'#fff0c5',transparent:true,opacity:.022,depthWrite:false,side:THREE.DoubleSide}));beam.position.set(x*.72,2.33,z*.72);beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(x*.28,4.4,z*.28).normalize());fightNight.add(beam);}
@@ -56,7 +51,6 @@ export function createUnderground(scene,renderer){
  for(const side of [-1,1]){hallBox([.07,.9,6],[-2.1+side*.83,-.12,7.1],'#6b7b85');hallBox([.07,.055,6],[-2.1+side*.83,.32,7.1],'#b4c2c7');}
  for(let n=0;n<3;n++)hallBox([1.2,.20*(n+1),.35],[-2.1,-.6+.1*(n+1),3.65-n*.35],'#6f8490');
  for(const side of [-1,1]){hallBox([1.5,2.5,.16],[-2.1+side*1.1,.65,10.6],'#1a2030');hallBox([.10,2.4,.18],[-2.1+side*.75,.63,10.45],side<0?'#ffa563':'#62c9df');}
- hallSign('YOUR FIRST PAYDAY','THE WALK IS REAL NOW.',3.2,.7,[-2.1,2.55,10.35],Math.PI);
  const nightCanvas=hallSign('SATURDAY SCRAPS','FIGHT NIGHT / EARN YOUR KEEP',5.8,5.8,[0,.019,0]);nightCanvas.rotation.x=-Math.PI/2;
  for(const side of [-1,1]){hallSign('SATURDAY SCRAPS','LOCAL FIGHT NIGHT',3.1,.40,[0,-.26,side*3.068],side===1?0:Math.PI);hallSign('SATURDAY SCRAPS','LOCAL FIGHT NIGHT',3.1,.40,[side*3.068,-.26,0],side*Math.PI/2);}
  const seats=[];
