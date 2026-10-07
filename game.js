@@ -54,7 +54,7 @@ const balance=()=>PHYSICS.balance,power=()=>PHYSICS.power;
 const v=(x=0,y=0,z=0)=>new C.Vec3(x,y,z);
 function makeFighter(x,color,skin,yaw){
  const f={parts:[],joints:[],health:100,yaw,x,z:0,punch:[-10,-10],punchYaw:[yaw,yaw],punchPower:[1,1],punchKind:['hook','hook'],cool:[0,0],hit:new Map(),down:0,phase:0,color,guard:0,dodge:0,slipTracks:[],counterUntil:0,counterEarned:Infinity,slips:0,blocks:0,stagger:0,recoilPitch:0,recoilRoll:0,bodyTurn:0,move:v()};
- function part(name,mass,size,pos,material,sphere=false){const b=new C.Body({mass,position:v(x+pos[0],pos[1],pos[2]),linearDamping:.12,angularDamping:.45});b.addShape(sphere?new C.Sphere(size[0]):new C.Box(v(...size.map(n=>n/2))));if(name.startsWith('foot'))b.material=new C.Material({friction:1.2});world.addBody(b);const mesh=new THREE.Mesh(sphere?new THREE.SphereGeometry(size[0],20,16):new THREE.BoxGeometry(...size),material);mesh.castShadow=true;scene.add(mesh);const p={name,b,mesh,size};f.parts.push(p);f[name]=p;return p;}
+ function part(name,mass,size,pos,material,sphere=false){const b=new C.Body({mass,position:v(x+pos[0],pos[1],pos[2]),linearDamping:.12,angularDamping:.45});b.collisionFilterGroup=2<<fighters.length;b.collisionFilterMask=~b.collisionFilterGroup;b.addShape(sphere?new C.Sphere(size[0]):new C.Box(v(...size.map(n=>n/2))));if(name.startsWith('foot'))b.material=new C.Material({friction:1.2});world.addBody(b);const mesh=new THREE.Mesh(sphere?new THREE.SphereGeometry(size[0],20,16):new THREE.BoxGeometry(...size),material);mesh.castShadow=true;scene.add(mesh);const p={name,b,mesh,size};f.parts.push(p);f[name]=p;return p;}
  const flesh=mat(skin,.66),shorts=mat(color),gloves=mat(color,.34),boots=mat('#252b30');
  part('hips',8,[.30,.24,.22],[0,1.15,0],shorts);part('torso',17,[.30,.52,.19],[0,1.53,0],flesh);part('head',4,[.17],[0,1.96,0],flesh,true);
  function detail(parent,size,pos,material){const mesh=new THREE.Mesh(new THREE.BoxGeometry(...size),material);mesh.position.set(...pos);mesh.castShadow=true;parent.add(mesh);return mesh;}
@@ -103,7 +103,7 @@ function armOrientation(direction,heading){
 }
 function servo(body,target,strength,max){const inv=body.quaternion.conjugate();const error=target.mult(inv);if(error.w<0){error.x*=-1;error.y*=-1;error.z*=-1;}const torque=v(error.x*strength-body.angularVelocity.x*strength*.075,error.y*strength-body.angularVelocity.y*strength*.075,error.z*strength-body.angularVelocity.z*strength*.075);const len=torque.length();if(len>max)torque.scale(max/len,torque);body.torque.vadd(torque,body.torque);}
 function soundPan(f){const dx=f.hips.b.position.x-cameraFocus.x,dz=f.hips.b.position.z-cameraFocus.z;return Math.max(-.7,Math.min(.7,(dx*.8-dz*.6)*.18));}
-function punch(f,i,force=1,kind='hook'){if(clock<f.cool[i]||clock<f.down||f.health<=0||clock-f.punch[1-i]<(f.punchKind[1-i]==='hook'?.64:.52))return false;f.punch[i]=clock;f.punchYaw[i]=f.yaw;f.punchPower[i]=force;f.punchKind[i]=kind;f.cool[i]=clock+(kind==='hook'?1.10:.82);fightAudio.swing(f.voice||'OPPONENT',i,force,soundPan(f));return true;}
+function punch(f,i,force=1,kind='hook'){if(clock<f.cool[i]||clock<f.down||f.health<=0||clock-f.punch[1-i]<(f.punchKind[1-i]==='hook'?.64:.52))return false;const opponent=f===player?enemy:player;const aim=opponent.torso.b.position.vsub(f.torso.b.position);if(Math.hypot(aim.x,aim.z)>.15)f.yaw=Math.atan2(aim.x,aim.z);f.punch[i]=clock;f.punchYaw[i]=f.yaw;f.punchPower[i]=force;f.punchKind[i]=kind;f.cool[i]=clock+(kind==='hook'?1.10:.82);fightAudio.swing(f.voice||'OPPONENT',i,force,soundPan(f));return true;}
 function pushFight(f){
  const opponent=f===player?enemy:player;if(matchFlow.phase!=='playing'||((story.active||multiplayer?.active)&&clock<3)||f.health<=0||opponent.health<=0||clock<(f.pushCooldown||0)||clock<(opponent.pushCooldown||0))return false;
  const a=f.hips.b.position,b=opponent.hips.b.position,dx=b.x-a.x,dz=b.z-a.z,distance=Math.hypot(dx,dz);if(distance>.9||Math.abs(a.y-b.y)>.45)return false;
@@ -114,7 +114,7 @@ function pushFight(f){
 function guardTap(){const now=performance.now();if(now-lastGuardTap<330&&clock-lastGuardClock<.33){lastGuardTap=lastGuardClock=-Infinity;if(multiplayer?.guest)multiplayer.push();else pushFight(player);}else{lastGuardTap=now;lastGuardClock=clock;}}
 function requestAttack(hand,force=1,touchKind=null){if(matchFlow.phase!=='playing'||(story.active||multiplayer?.active)&&clock<3)return;const kind=touchKind||(keys.has('KeyG')?'uppercut':keys.has('KeyF')?'hook':'straight');if(multiplayer?.guest){multiplayer.punch(hand,kind);return;}if(!punch(player,hand,force,kind))pendingAttack={hand,force,kind,expires:clock+.3};else pendingAttack=null;}
 function footwork(f,dt,moveX,moveZ){
- const leg=f.legScale||1,width=f.proportions?.hip||1,mass=f.massScale||1;const heading=f.yaw+f.bodyTurn*.8,gait=f.gait,hips=f.hips.b,speed=Math.hypot(moveX,moveZ),sin=Math.sin(heading),cos=Math.cos(heading);
+ const leg=f.legScale||1,width=f.proportions?.hip||1,mass=f.massScale||1;const heading=f.yaw+f.bodyTurn*.55,gait=f.gait,hips=f.hips.b,speed=Math.hypot(moveX,moveZ),sin=Math.sin(heading),cos=Math.cos(heading);
  const home=i=>{const side=i===0?-1:1;return v(hips.position.x+side*PHYSICS.stanceWidth*width*cos+sin*(i===0?.1:-.1),.075,hips.position.z-side*PHYSICS.stanceWidth*width*sin+cos*(i===0?.1:-.1));};
  if(gait.swing<0){let chosen=gait.next;const drift=gait.feet.map((p,i)=>{const h=home(i);return Math.hypot(p.x-h.x,p.z-h.z);});
    if(speed>.1||Math.max(...drift)>.22&&clock-Math.max(...f.punch)>.6){if(speed<=.1)chosen=drift[0]>drift[1]?0:1;gait.swing=chosen;gait.elapsed=0;gait.from=gait.feet[chosen].clone();gait.to=home(chosen);gait.to.x+=moveX*.27;gait.to.z+=moveZ*.27;}
@@ -125,7 +125,9 @@ function footwork(f,dt,moveX,moveZ){
    if(t>=1){gait.feet[gait.swing].y=.075;gait.next=1-gait.swing;gait.swing=-1;gait.steps++;fightAudio.step(f.voice||'OPPONENT',soundPan(f));}
  }
  let support=0;
- for(let i=0;i<2;i++){const id=i===0?'L':'R',foot=f['foot'+id].b,goal=gait.feet[i],swing=gait.swing===i;
+ for(let i=0;i<2;i++){const id=i===0?'L':'R',foot=f['foot'+id].b,goal=gait.feet[i].clone(),swing=gait.swing===i;
+   // Keep the supporting foot planted; the striking-side heel pivots off the canvas.
+   const pivot=i===f.strikeHand?(f.strikeDrive||0):0;goal.y+=pivot*.035;
    const error=goal.vsub(foot.position),force=v(error.x*(swing?850:2600)-foot.velocity.x*(swing?38:110),error.y*(swing?1100:650)-foot.velocity.y*40,error.z*(swing?850:2600)-foot.velocity.z*(swing?38:110));
    const length=force.length();if(length>700)force.scale(700/length,force);foot.applyForce(force.scale(mass));
    if(!swing&&foot.position.y<.18)support++;
@@ -134,7 +136,7 @@ function footwork(f,dt,moveX,moveZ){
  const along=(.46*.46*leg*leg-.44*.44*leg*leg+distance*distance)/(2*distance),mid=hip.vadd(axis.scale(along));let pole=v(sin,0,cos);pole= pole.vsub(axis.scale(pole.dot(axis)));pole.normalize();const knee=mid.vadd(pole.scale(Math.sqrt(Math.max(0,.46*.46*leg*leg-along*along))));
    const upper=knee.vsub(hip),lower=ankle.vsub(knee);upper.normalize();lower.normalize();
    const yawPose=quaternion(0,heading,0),uq=new C.Quaternion().setFromVectors(v(0,-1,0),upper).mult(yawPose),lq=new C.Quaternion().setFromVectors(v(0,-1,0),lower).mult(yawPose);
-   servo(f['thigh'+id].b,uq,180,85);servo(f['shin'+id].b,lq,165,75);servo(foot,quaternion(swing?-.15*Math.sin(gait.elapsed/PHYSICS.stepTime*Math.PI):0,heading+f.bodyTurn*(i===0?.28:.18),0),f.bodyTurn?110:85,f.bodyTurn?52:40);
+   servo(f['thigh'+id].b,uq,180,85);servo(f['shin'+id].b,lq,165,75);servo(foot,quaternion(swing?-.15*Math.sin(gait.elapsed/PHYSICS.stepTime*Math.PI):pivot*.20,f.yaw+f.bodyTurn*(i===f.strikeHand?.95:.48),0),f.bodyTurn?110:85,f.bodyTurn?52:40);
  }
  return support;
 }
@@ -142,12 +144,17 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
  const hips=f.hips.b,torso=f.torso.b;const up=torso.quaternion.vmult(v(0,1,0));if(f.health<=0)f.down=clock+2.5;const active=clock>f.down&&f.health>0;
  if(!active)return;if(clock<(f.pushUntil||0)){moveX=f.pushDirection.x*2.2/PHYSICS.walkSpeed;moveZ=f.pushDirection.z*2.2/PHYSICS.walkSpeed;}f.guard+=(Number(guard)-f.guard)*Math.min(1,dt*18);f.dodge+=(dodgeInput-f.dodge)*(1-Math.exp(-dt*24));f.stagger=Math.max(0,f.stagger-dt*1.65);f.phase+=dt*Math.hypot(moveX,moveZ)*9;
  const sway=Math.sin(clock*17)*f.stagger*.055,firmness=(1-f.stagger*.65)*(f.massScale||1);
- let twist=0,commit=0,hipTwist=0,loaded=0,dip=0,hookFollow=0,hookSide=0,upperDrive=0,windupPitch=0,driveWeight=0;for(let i=0;i<2;i++){const kind=f.punchKind[i],age=(clock-f.punch[i])*(kind==='hook'?.75:1);if(age>=0&&age<.82){const side=i===0?1:-1;if(kind==='uppercut'){dip=Math.max(dip,age<.18?Math.sin(age/.18*Math.PI/2)*.115:age<.46?.115*(1-(age-.18)/.28):0);upperDrive=Math.max(upperDrive,age>.18&&age<.46?Math.sin((age-.18)/.28*Math.PI):0);}if(kind!=='hook')windupPitch=Math.max(windupPitch,age<.18?Math.sin(age/.18*Math.PI/2)*(kind==='uppercut'?.18:.09):0);let turn;
-   if(age<.18)turn=-.55*Math.sin(age/.18*Math.PI/2);
-   else if(age<.46){const t=(age-.18)/.28;turn=-.55+1.8*(t*t*(3-2*t));}
-   else if(age<.6)turn=1.25;
-   else{const t=(age-.6)/.22;turn=1.25*(1-t*t*(3-2*t));}
-   turn*=kind==='straight'?.90:kind==='uppercut'?.98:1;twist+=side*turn;hipTwist+=side*(age<.18?turn*1.10:age<.46?Math.min(1.28,turn+.18):turn*.86);loaded+=side*Math.sin(Math.min(1,age/.46)*Math.PI)*(kind==='straight'?.075:kind==='uppercut'?.06:.045);driveWeight=Math.max(driveWeight,kind==='straight'?1.6:kind==='uppercut'?1.3:1);commit=Math.max(commit,age>.18&&age<.46?Math.sin((age-.18)/.28*Math.PI):0);
+ let twist=0,commit=0,hipTwist=0,loaded=0,dip=0,hookFollow=0,hookSide=0,upperDrive=0,windupPitch=0,driveWeight=0;f.strikeHand=-1;f.strikeDrive=0;for(let i=0;i<2;i++){const kind=f.punchKind[i],age=(clock-f.punch[i])*(kind==='hook'?.75:1);if(age>=0&&age<1.12&&f.punch[1-i]<=f.punch[i]){const side=i===0?1:-1;if(kind==='uppercut'){dip=Math.max(dip,age<.18?Math.sin(age/.18*Math.PI/2)*.115:age<.46?.115*(1-(age-.18)/.28):0);upperDrive=Math.max(upperDrive,age>.18&&age<.46?Math.sin((age-.18)/.28*Math.PI):0);}if(kind!=='hook')windupPitch=Math.max(windupPitch,age<.18?Math.sin(age/.18*Math.PI/2)*(kind==='uppercut'?.18:.09):0);let turn;
+   // The pelvis initiates the drive, the shoulders overtake it, then both stay
+   // turned through contact. Recovery unwinds the whole stance, not just the arm.
+   const peak=kind==='hook'?1.95:kind==='uppercut'?1.72:1.58;
+   if(age<.18)turn=-.48*Math.sin(age/.18*Math.PI/2);
+   else if(age<.46){const t=(age-.18)/.28;turn=-.48+(peak+.48)*(t*t*(3-2*t));}
+   else if(age<.62)turn=peak;
+   else{const t=(age-.62)/.50;turn=peak*(1-t*t*(3-2*t));}
+   twist+=side*turn;hipTwist+=side*(age<.18?turn*.90:age<.46?Math.min(peak*.90,turn+.24):turn*.88);
+   const transfer=age<.18?-Math.sin(age/.18*Math.PI/2):age<.46?-1+2*((age-.18)/.28):age<.62?1:Math.max(0,1-(age-.62)/.5);
+   loaded+=side*transfer*.12;f.strikeHand=i;f.strikeDrive=age>.18&&age<.62?Math.sin(Math.min(1,(age-.18)/.28)*Math.PI/2):0;driveWeight=Math.max(driveWeight,kind==='straight'?1.6:kind==='uppercut'?1.3:1);commit=Math.max(commit,age>.18&&age<.46?Math.sin((age-.18)/.28*Math.PI):0);
  }}
  // Every committed strike carries the body beyond contact before settling back.
  // Hooks retain the deepest diagonal recovery.
@@ -159,23 +166,23 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
  if(f.telegraph?.kind==='uppercut'){dip=Math.max(dip,.10);windupPitch=Math.max(windupPitch,.16);}
  if(f.telegraph)twist+=(f.telegraph.hand===0?-1:1)*.23;
  f.bodyTurn=twist;
- const pitch=(lean?.28:.05)+f.guard*.12+commit*.13+hookFollow*.34+windupPitch+commit*(driveWeight>1?.075:0)-upperDrive*.12;
- const dodgeRoll=-f.dodge*.86+hookSide*.20;
- const target=quaternion(pitch+sway+f.recoilPitch*f.stagger,f.yaw+twist,sway*.6-twist*.08+f.recoilRoll*f.stagger+dodgeRoll);servo(torso,target,(f.dodge?820:650)*balance()*firmness,f.dodge?360:290);servo(hips,quaternion(.025,f.yaw+hipTwist,-twist*.035+f.dodge*.06),(twist?(driveWeight>1?880:740):480)*balance()*firmness,twist?(driveWeight>1?360:310):220);servo(f.head.b,quaternion(pitch+f.guard*.48+commit*.16+f.recoilPitch*f.stagger,f.yaw+twist*.94,dodgeRoll*.8),95*firmness,45);
+ const pitch=(lean?.28:.05)+f.guard*.12+commit*.24+f.strikeDrive*.30+hookFollow*.40+windupPitch+commit*(driveWeight>1?.075:0)-upperDrive*.12;
+ const dodgeRoll=-f.dodge*.86+hookSide*.26;
+ const target=quaternion(pitch+sway+f.recoilPitch*f.stagger,f.yaw+twist,sway*.6-twist*.12+f.recoilRoll*f.stagger+dodgeRoll);servo(torso,target,(f.dodge?820:twist?1000:650)*balance()*firmness,f.dodge?360:twist?410:290);servo(hips,quaternion(.025+commit*.10+f.strikeDrive*.12,f.yaw+hipTwist,-twist*.035+f.dodge*.06),(twist?(driveWeight>1?1100:1000):480)*balance()*firmness,twist?(driveWeight>1?420:390):220);servo(f.head.b,quaternion(pitch+f.guard*.48+commit*.16+f.recoilPitch*f.stagger,f.yaw+twist*.94,dodgeRoll*.8),95*firmness,45);
  const response=1-Math.exp(-dt*(Math.hypot(moveX,moveZ)>.1?15:24));f.move.x+=(moveX-f.move.x)*response;f.move.z+=(moveZ-f.move.z)*response;moveX=f.move.x;moveZ=f.move.z;
  const support=footwork(f,dt,moveX,moveZ);const bob=f.gait.swing<0?0:Math.sin(f.gait.elapsed/PHYSICS.stepTime*Math.PI)*.025;
- const lift=280*(f.massScale||1)+((f.stanceHeight||1.10)+bob+upperDrive*.055-dip-hookFollow*.065-commit*.035-Math.abs(f.dodge)*.10-hips.position.y)*1500-hips.velocity.y*145;hips.applyForce(v(0,Math.min(950,Math.max(-100,lift))*balance(),0));
+ const lift=280*(f.massScale||1)+((f.stanceHeight||1.10)+bob+upperDrive*.055-dip-hookFollow*.11-commit*.035-Math.abs(f.dodge)*.10-hips.position.y)*1500-hips.velocity.y*145;hips.applyForce(v(0,Math.min(950,Math.max(-100,lift))*balance(),0));
  const speedScale=(1-hookFollow*.18)*(1-Math.abs(f.dodge)*.18)*(1-f.guard*.24)*(1-commit*.35)*(1-f.stagger*.3);const walking=v((moveX*PHYSICS.walkSpeed*speedScale-hips.velocity.x)*360,0,(moveZ*PHYSICS.walkSpeed*speedScale-hips.velocity.z)*360);if(support){hips.applyForce(walking.scale(.45));torso.applyForce(walking.scale(.55));}
  // Keep the centre of mass over the step corridor, rather than dragging the hips away from the feet.
  const feet=f.gait.feet,baseX=(feet[0].x+feet[1].x)/2,baseZ=(feet[0].z+feet[1].z)/2;
- const offset=v(baseX+moveX*.13+Math.cos(f.yaw)*loaded+Math.sin(f.yaw)*commit*.045-hips.position.x,0,baseZ+moveZ*.13-Math.sin(f.yaw)*loaded+Math.cos(f.yaw)*commit*.045-hips.position.z),excess=Math.max(0,offset.length()-.16);
+ const offset=v(baseX+moveX*.13+Math.cos(f.yaw)*loaded+Math.sin(f.yaw)*commit*.10-hips.position.x,0,baseZ+moveZ*.13-Math.sin(f.yaw)*loaded+Math.cos(f.yaw)*commit*.045-hips.position.z),excess=Math.max(0,offset.length()-.16);
  if(excess>0){offset.normalize();hips.applyForce(offset.scale(Math.min(220,excess*900)*firmness));}
  if(Math.hypot(moveX,moveZ)<.1)hips.applyForce(v(-hips.velocity.x*160,0,-hips.velocity.z*160));if(support&&commit){const transfer=v(Math.sin(f.yaw)*85*commit*driveWeight,0,Math.cos(f.yaw)*85*commit*driveWeight);torso.applyForce(transfer);hips.applyForce(transfer.scale(-.25));}
  for(let i=0;i<2;i++){const id=i===0?'L':'R',s=i===0?-1:1;
  const kind=f.punchKind[i],age=(clock-f.punch[i])*(kind==='hook'?.75:1),swing=age>=0&&age<.82;
  // Drive the glove through a broad horizontal arc using forces, never teleporting it.
  let localX=s*.205,localZ=.19,height=.015,heading=f.yaw+twist,hookTangent=null;
- if(swing&&kind==='hook'){heading=f.punchYaw[i]+twist*.24;let angle,radius;
+ if(swing&&kind==='hook'){heading=f.punchYaw[i]+twist*.14;let angle,radius;
    if(age<.18){const t=age/.18;angle=.25-t*.55;radius=.40+t*.18;}
    else if(age<.46){const t=(age-.18)/.28;angle=-.3+t*2.35;radius=.58+.22*Math.sin(t*Math.PI/2);}
    else if(age<.6){angle=2.05;radius=.73;}
@@ -185,7 +192,7 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
  }
  // Straight: shoulder-led extension. Uppercut: load low and drive up under the chin.
  if(swing&&kind!=='hook'){
-  heading=f.punchYaw[i]+twist*.16;
+  heading=f.punchYaw[i]+(kind==='uppercut'?twist*.08:0);
   const smooth=t=>t*t*(3-2*t),strike=smooth(Math.max(0,Math.min(1,(age-.18)/.24))),recover=smooth(Math.max(0,Math.min(1,(age-.52)/.30)));
   if(kind==='straight'){
    const load=Math.min(1,age/.18);localX=s*(.205-.12*strike)*(1-recover)+s*.205*recover;
@@ -225,7 +232,7 @@ function control(f,dt,moveX,moveZ,guard,lean,dodgeInput=0){
  const drive=delta.scale(swing?(kind==='hook'?1180:780)*power()*f.punchPower[i]:guard?620:560).vsub(relative.scale(swing?17:24));const magnitude=drive.length();const forceLimit=swing?(kind==='hook'?580:480):420;if(magnitude>forceLimit)drive.scale(forceLimit/magnitude,drive);
  hand.applyForce(drive);torso.applyForce(drive.scale(-.18));
  const upper=elbow.vsub(shoulder),fore=goal.vsub(elbow);upper.normalize();fore.normalize();
- servo(f['upper'+id].b,armOrientation(upper,heading),swing?155:52,swing?110:30);servo(f['fore'+id].b,armOrientation(fore,heading),swing&&kind==='hook'?210:swing?100:45,swing&&kind==='hook'?95:swing?65:27);servo(hand,armOrientation(fore,heading),12,8);
+ servo(f['upper'+id].b,armOrientation(upper,heading),swing?220:52,swing?145:30);servo(f['fore'+id].b,armOrientation(fore,heading),swing&&kind==='hook'?340:swing?140:45,swing&&kind==='hook'?145:swing?85:27);servo(hand,armOrientation(fore,heading),12,8);
  }
 }
 function reset(){lastGuardTap=lastGuardClock=-Infinity;remoteAttack=null;guestSnapshot=null;touchControls.reset();referee.reset();clock=0;acc=0;for(const j of jointDots)j.dot.visible=debug;pendingAttack=null;combatFX.clear();impactIndicators.clear();contactIndicators.clear();hitPause=0;hitFlash=0;keys.clear();for(const f of fighters){const dx=f===player?-1.1:1.1;for(const p of f.parts){const initial=p.mesh.userData.initial;if(initial){p.b.position.copy(initial);p.b.position.x+=dx-f.x;}p.b.velocity.setZero();p.b.angularVelocity.setZero();p.b.quaternion.set(0,0,0,1);p.mesh.position.copy(p.b.position);p.mesh.quaternion.copy(p.b.quaternion);}f.health=100;f.impactSeq=0;f.receivedImpactSeq=0;f.lastImpact=null;f.pushCooldown=0;f.pushUntil=0;f.pushStart=-10;f.guard=0;f.dodge=0;f.slipTracks=[];f.counterUntil=0;f.counterEarned=Infinity;f.slips=0;f.blocks=0;f.stagger=0;f.recoilPitch=0;f.recoilRoll=0;f.bodyTurn=0;f.move.setZero();f.hit.clear();f.down=0;f.yaw=f===player?Math.PI/2:-Math.PI/2;f.punch=[-10,-10];f.punchPower=[1,1];f.punchKind=['hook','hook'];f.cool=[0,0];f.gait={feet:[f.footL.b.position.clone(),f.footR.b.position.clone()],swing:-1,next:0,elapsed:0,from:null,to:null,steps:0};}story.reset();document.querySelector('#message').textContent=story.active?(story.chapter===5?'SATURDAY SCRAPS / FIRST PAID FIGHT':story.chapter===4?'THE BOILER ROOM / BULLFROG':story.chapter===3?'THE BOILER ROOM / LATCH':story.chapter===2?'THE BOILER ROOM / TWO STEP':'THE BOILER ROOM / FIRST FIGHT'):'FREE SPARRING';}
@@ -252,9 +259,9 @@ function receiveFight(dt){
  followCamera(dt);combatFX.update(dt,camera,fighters,clock);impactIndicators.update(dt,camera);renderArena();
 }
 addEventListener('keydown',e=>{if(matchFlow.phase!=='playing'){if(e.code==='Escape'&&matchFlow.phase==='replay')matchFlow.finish();return;}if(['Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='Space')guardTap();if(e.code==='ArrowLeft'||e.code==='ArrowRight')requestAttack(e.code==='ArrowLeft'?0:1);if(e.code==='KeyR'&&!multiplayer.active)matchFlow.start();});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>{keys.clear();lastGuardTap=lastGuardClock=-Infinity;pendingAttack=null;});renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());renderer.domElement.addEventListener('pointerdown',e=>{if(matchFlow.phase!=='playing'||![0,2].includes(e.button)||e.pointerType==='touch')return;e.preventDefault();requestAttack(e.button===0?0:1);});document.querySelector('#reset').onclick=()=>{if(!multiplayer.active)matchFlow.start();};document.querySelector('#ai').onclick=e=>{ai=!ai;e.target.textContent='Opponent: '+(ai?'on':'off');};document.querySelector('#debug').onclick=()=>{debug=!debug;for(const j of jointDots)j.dot.visible=debug;};
-function renderArena(){document.body.classList?.toggle('network-match',!!multiplayer?.active);publishFight();if(multiplayer?.active){const countdown=document.querySelector('#story-countdown');countdown.hidden=clock>=3||matchFlow.phase!=='playing';countdown.textContent=Math.ceil(3-clock);if(matchFlow.phase==='result'){document.querySelector('#rematch').onclick=()=>multiplayer.showRematch();document.querySelector('#rematch').textContent='RETURN TO PARTY';}document.querySelector('#menu-button').onclick=()=>multiplayer.leave();document.querySelector('#return-menu').onclick=()=>multiplayer.leave();}touchControls.setActive(matchFlow.phase==='playing');for(const figure of connectedFigures)figure.update();cinematics.updateAppearance();arena.render(camera,scene);}
+function renderArena(){document.body.classList?.toggle('network-match',!!multiplayer?.active);publishFight();if(multiplayer?.active){const countdown=document.querySelector('#story-countdown');countdown.hidden=clock>=3||matchFlow.phase!=='playing';countdown.textContent=Math.ceil(3-clock);if(matchFlow.phase==='result'){document.querySelector('#rematch').onclick=()=>multiplayer.showRematch();document.querySelector('#rematch').textContent='RETURN TO PARTY';}document.querySelector('#menu-button').onclick=()=>multiplayer.leave();document.querySelector('#return-menu').onclick=()=>multiplayer.leave();}referee.root.visible=matchFlow.phase!=='menu';touchControls.setActive(matchFlow.phase==='playing');for(const figure of connectedFigures)figure.update();cinematics.updateAppearance();arena.render(camera,scene);}
 let last=performance.now(),acc=0;function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;if(multiplayer?.active){if(multiplayer.guest)multiplayer.sendInput(localInput(enemy));if(multiplayer.paused){document.querySelector('#message').textContent='CONNECTION INTERRUPTED · RECONNECTING';renderArena();return;}if(multiplayer.guest&&['playing','knockout'].includes(matchFlow.phase)){receiveFight(dt);return;}}story.tick(dt,clock,matchFlow.phase);if(['menu','intro','outro','replay','result'].includes(matchFlow.phase)){matchFlow.update(dt);renderArena();return;}if(matchFlow.phase==='knockout'){keys.clear();pendingAttack=null;}hitFlash=Math.max(0,hitFlash-dt);if(hitPause>0){hitPause-=dt;followCamera(dt);combatFX.update(dt,camera,fighters,clock);impactIndicators.update(dt,camera);renderArena();return;}acc+=dt;while(acc>=PHYSICS_STEP){const step=PHYSICS_STEP;clock+=step;if(pendingAttack){if(clock>pendingAttack.expires)pendingAttack=null;else if(punch(player,pendingAttack.hand,pendingAttack.force,pendingAttack.kind))pendingAttack=null;}if(remoteAttack){if(clock>remoteAttack.expires)remoteAttack=null;else if(punch(enemy,remoteAttack.hand,1,remoteAttack.kind))remoteAttack=null;}
- const facing=Math.atan2(enemy.hips.b.position.x-player.hips.b.position.x,enemy.hips.b.position.z-player.hips.b.position.z);if(clock-Math.max(...player.punch)>.82)player.yaw+=Math.atan2(Math.sin(facing-player.yaw),Math.cos(facing-player.yaw))*Math.min(1,step*6);
+ const facing=Math.atan2(enemy.hips.b.position.x-player.hips.b.position.x,enemy.hips.b.position.z-player.hips.b.position.z);if(clock-Math.max(...player.punch)>(player.punchKind[player.punch[0]>player.punch[1]?0:1]==='hook'?1.49:1.12))player.yaw+=Math.atan2(Math.sin(facing-player.yaw),Math.cos(facing-player.yaw))*Math.min(1,step*6);
  const input=localInput(player);control(player,step,input.x,input.z,input.guard,keys.has('ShiftLeft')||keys.has('ShiftRight'),input.slip);
  const dx=player.hips.b.position.x-enemy.hips.b.position.x,dz=player.hips.b.position.z-enemy.hips.b.position.z,dist=Math.hypot(dx,dz);let speed=0,enemyGuard=false,enemySide=0;
  if(!multiplayer?.active&&matchFlow.phase==='playing'&&(ai||story.active)){enemy.yaw=Math.atan2(dx,dz);if(story.active){const action=story.updateAI(clock,dist,punch);speed=action.speed;enemyGuard=action.guard;enemySide=action.side||0;}else{if(dist<1.65&&Math.sin(clock*4.1)>.88)punch(enemy,Math.sin(clock*2)>0?0:1);speed=dist>1.05?.65:dist<.7?-.4:0;enemyGuard=Math.sin(clock*1.7)>.5;}}

@@ -24,7 +24,7 @@ export function createMatchFlow(fighters,camera,onReset,extraParts=[],story=null
  const q=new THREE.Quaternion(),pos=new THREE.Vector3();
  function update(dt){
   if((phase==='intro'||phase==='outro')&&cinema){if(cinema.update(dt,camera)){if(phase==='intro')start();else finish(true);}return;}
-  if(phase==='menu'||phase==='intro'){elapsed+=dt;camera.position.set(Math.sin(elapsed*.08)*7.8,3.7,Math.cos(elapsed*.08)*7.8);camera.lookAt(0,1,0);return;}
+  if(phase==='menu'&&cinema?.previewMenu){cinema.previewMenu(dt,camera);return;}if(phase==='menu'||phase==='intro'){elapsed+=dt;camera.position.set(Math.sin(elapsed*.08)*7.8,3.7,Math.cos(elapsed*.08)*7.8);camera.lookAt(0,1,0);return;}
   if(phase!=='replay')return;
   elapsed+=dt;const duration=clip.at(-1).time-clip[0].time,passLength=duration/.48+.35,angle=Math.floor(elapsed/passLength);
   if(angle>=2){finish();return;}
